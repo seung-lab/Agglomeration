@@ -1,13 +1,13 @@
 __precompile__()
-module Volumes3
+module Volumes
 export Volume
-export AtomicRegion, AggregateRegion, TreeRegion,Region
+export AtomicRegion, TreeRegion,Region
+export AtomicEdge, TreeEdge, EmptyEdge,Edge
 export compute_regions, compute_edges
 export volume,edges,regions
 
 using Save
 using DataStructures
-using ArrayUtils
 using FixedSizeArrays
 using Iterators
 
@@ -48,30 +48,43 @@ type AtomicRegion{vol} <: Region{vol}
 end
 AtomicRegion{vol}(volume::Volume{vol},id::Int)=AtomicRegion{vol}(Vec{3,Int}[],ObjectIdDict(),id)
 
+#=
 type AggregateRegion{vol} <: Region{vol}
 	regions::Set{AtomicRegion{vol}}
 end
+=#
 type TreeRegion{vol} <: Region{vol}
 	left::Region{vol}
 	right::Region{vol}
 end
 
-Base.convert{vol}(::Type{AggregateRegion{vol}},x::AtomicRegion{vol})=AggregateRegion{vol}(Set([x]))
+#Base.convert{vol}(::Type{AggregateRegion{vol}},x::AtomicRegion{vol})=AggregateRegion{vol}(Set([x]))
 
 function volume end
 function regions end
 function edges end
 
+#=
 function Base.union{vol}(r1::Region{vol},r2::Region{vol})
 	r1=convert(AggregateRegion{vol},r1)
 	r2=convert(AggregateRegion{vol},r2)
 	AggregateRegion{vol}(union(r1.regions,r2.regions))
 end
-type AtomicEdge{vol}
+=#
+
+abstract Edge{vol}
+type AtomicEdge{vol} <: Edge{vol}
 	head::AtomicRegion{vol}
 	tail::AtomicRegion{vol}
 	edges::Array{Vec{4,Int},1}
 end
+type TreeEdge{vol} <: Edge{vol}
+	left::Edge{vol}
+	right::Edge{vol}
+end
+immutable EmptyEdge{vol} <: Edge{vol}
+end
+
 #=
 type AggregateEdge{vol}
 	head::Region{vol}
@@ -79,7 +92,6 @@ type AggregateEdge{vol}
 	atomic_edges::Set{AggregateEdge{vol}}
 end
 =#
-
 function AtomicEdge{vol}(head::AtomicRegion{vol},tail::AtomicRegion{vol},edges::Array{Vec{4,Int},1})
 	x=AtomicEdge{vol}(head,tail,edges)
 	head.neighbours[tail]=x
@@ -142,4 +154,5 @@ function compute_edges{vol}(volume::Volume{vol},regions)
 	]
 	cat(1,ret1,ret2)
 end
+
 end
