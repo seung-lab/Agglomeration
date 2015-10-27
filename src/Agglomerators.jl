@@ -3,26 +3,71 @@ using DataStructures
 using Base.Collections
 using Volumes
 using Iterators
+using DecisionTree
+
+export Agglomerator, LinearAgglomerator, AccumulatingAgglomerator, DecisionTreeAgglomerator, OracleAgglomerator
+export atomic_region_graph, RegionGraph,apply_agglomeration!
+export train!
 
 abstract Agglomerator
 
-immutable RandomAgglomerator<: Agglomerator end
-function call(ag::RandomAgglomerator, x)
-	rand()
-end
 type LinearAgglomerator <: Agglomerator
 	features::Array{Function,1}
 	coefficients::Array{Real,1}
 end
+type DecisionTreeAgglomerator <: Agglomerator
+	features::Array{Function,1}
+	model
+	function DecisionTreeAgglomerator(features)
+		new(features,Void)
+	end
+end
+
+type AccumulatingAgglomerator <: Agglomerator
+	ag::Agglomerator
+	examples
+	function AccumulatingAgglomerator(ag)
+		new(ag,[])
+	end
+end
+type OracleAgglomerator <: Agglomerator
+end
+
+function call{vol}(ag::OracleAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
+	dot(normalized_soft_label(x[1]),normalized_soft_label(x[2]))
+end
+
 function call{vol}(ag::LinearAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
 	sum([ag.features[i](x)*ag.coefficients[i] for i in 1:length(ag.features)])
 end
+function call{vol}(ag::AccumulatingAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
+	push!(ag.examples,x)
+	ag.ag(x)
+end
+function call{vol}(ag::DecisionTreeAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
+	apply_tree(ag.model, [f(x) for f in ag.features])
+end
 
+function train!(ag::DecisionTreeAgglomerator,examples,goal)
+	features=Float64[f(e) for e in examples, f in ag.features]
+	labels=map(goal,examples)::Array{Float64,1}
+	ag.model=build_tree(labels,features)
+	ag.model=prune_tree(ag.model,0.9)
+end
+function train!(ag::AccumulatingAgglomerator,examples,goal)
+	train!(ag.ag,examples,goal)
+end
+function train!(ag::Agglomerator,examples)
+	train!(ag,examples,OracleAgglomerator())
+end
+
+#=
 n_svoxels(r::AtomicRegion)=1
 n_svoxels(r::TreeRegion)=n_svoxels(r.right)+n_svoxels(r.left)
+=#
 
 typealias RegionGraph{vol} DefaultDict{Region{vol},Dict{Region{vol},Edge{vol}}}
-function finest_region_graph{vol}(v::Volume{vol})
+function atomic_region_graph{vol}(v::Volume{vol})
 	rg=DefaultDict(Region{vol},Dict{Region{vol},Edge{vol}},()->Dict{Region{vol},Edge{vol}}())
 	for e in edges(v)
 		rg[e.head][e.tail]=e
@@ -63,7 +108,6 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 
 			orignbs1=A[e[1]]
 			orignbs2=A[e[2]]
-
 
 			nbs1=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
 			nbs2=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())

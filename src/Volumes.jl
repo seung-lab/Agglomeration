@@ -5,11 +5,13 @@ export AtomicRegion, TreeRegion,Region
 export AtomicEdge, TreeEdge, EmptyEdge,Edge
 export compute_regions, compute_edges
 export volume,edges,regions
+export soft_label, normalized_soft_label
 
 using Save
 using DataStructures
 using FixedSizeArrays
 using Iterators
+using Memoize
 
 immutable UnorderedPair{T}
 	data::Tuple{T,T}
@@ -155,4 +157,23 @@ function compute_edges{vol}(volume::Volume{vol},regions)
 	cat(1,ret1,ret2)
 end
 
+@memoize function soft_label(x::AtomicRegion)
+	A=zeros(Int,volume(x).n_human_labels)
+	for v in x.voxels
+		t=volume(x).human_labels[v]
+		if t!=0
+			A[t]+=1
+		end
+	end
+	A
+end
+
+@memoize function soft_label(x::TreeRegion)
+	soft_label(x.left) + soft_label(x.right)
+end
+
+function normalized_soft_label(x::Region)
+	t=soft_label(x)
+	t/(norm(t)+0.01)
+end
 end

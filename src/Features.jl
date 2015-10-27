@@ -1,6 +1,9 @@
 module Features
 using Volumes
 using Memoize
+using Moments
+
+export measure, max_affinity, contact_area, mean_affinity
 
 @memoize function measure(x::TreeRegion)
 	measure(x.left) + measure(x.right)
@@ -16,6 +19,36 @@ end
 end
 @memoize function max_affinity(x::EmptyEdge)
 	0.0
+end
+@memoize function contact_area(x::AtomicEdge)
+	length(x.edges)
+end
+@memoize function contact_area(x::TreeEdge)
+	contact_area(x.left)+contact_area(x.right)
+end
+@memoize function contact_area(x::EmptyEdge)
+	0
+end
+
+@memoize function sum_affinity(x::AtomicEdge)
+	sum(map(_->volume(x).affinities[_],x.edges))
+end
+@memoize function sum_affinity(x::EmptyEdge)
+	0.0
+end
+@memoize function sum_affinity(x::TreeEdge)
+	sum_affinity(x.left)+sum_affinity(x.right)
+end
+
+function mean_affinity(x::Edge)
+	sum_affinity(x)/(contact_area(x)+0.01)
+end
+
+@memoize function moments(x::AtomicRegion)
+	prod(map(_->lift_point(_,3),x.voxels))
+end
+@memoize function moments(x::TreeRegion)
+	moments(x.left)*moments(x.right)
 end
 
 end
