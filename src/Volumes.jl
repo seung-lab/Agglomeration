@@ -1,3 +1,10 @@
+#=
+Module volumes
+
+It initializes a volume from a folder path
+
+=#
+
 __precompile__()
 module Volumes
 export Volume
@@ -27,6 +34,10 @@ immutable Volume{name}
 	n_machine_labels::Int
 	n_human_labels::Int
 end
+
+#Volume creates and inmutable Volume given a path to a folder
+#machine and human labels are a sequence of integers with no missing values.
+#Both are a 3d volume of Int 
 function Volume(path::AbstractString,name::Symbol)
 	affinities=load("$(path)/affinities.jls")
 	machine_labels=convert(Array{Int},load("$(path)/machine_labels.jls"))
@@ -58,6 +69,7 @@ end
 type TreeRegion{vol} <: Region{vol}
 	left::Region{vol}
 	right::Region{vol}
+	weight::Real
 end
 
 #Base.convert{vol}(::Type{AggregateRegion{vol}},x::AtomicRegion{vol})=AggregateRegion{vol}(Set([x]))
@@ -94,10 +106,15 @@ type AggregateEdge{vol}
 	atomic_edges::Set{AggregateEdge{vol}}
 end
 =#
-function AtomicEdge{vol}(head::AtomicRegion{vol},tail::AtomicRegion{vol},edges::Array{Vec{4,Int},1})
+function AtomicEdge{vol}( head::AtomicRegion{vol},
+													tail::AtomicRegion{vol},
+													edges::Array{Vec{4,Int},1})
+
 	x=AtomicEdge{vol}(head,tail,edges)
 	head.neighbours[tail]=x
 end
+
+
 function compute_regions(volume::Volume)
 	n=volume.n_machine_labels
 	ret=[AtomicRegion(volume,i) for i in 1:n]
@@ -109,14 +126,24 @@ function compute_regions(volume::Volume)
 	ret
 end
 
+
+#compute_edges iterates throuh all voxels in the machine_labels
+#to returns an array of atomic edges
 function compute_edges{vol}(volume::Volume{vol},regions)
-	n=volume.n_machine_labels
-	affinities=volume.affinities
+
 	machine_labels=volume.machine_labels
+
+	#it compares the voxel its iterating with the one closer to the origin
+	#in the x,y and z dimensions.
+	#if this two voxels have different ids and both are different to 0(background voxels)
+	#it adds them to a DefaultDict.
+	#This dict contains as a key both voxels ids
+	#and as a value the position of the voxel being iterated and the direction on where to
+	#find the second voxels. Or in other words the position of both voxels.	
 	L=DefaultDict(UnorderedPair{Int},Array{Vec{4,Int},1},()->Vec{4,Int}[])
-	for k in 2:size(affinities,3)
-		for j in 2:size(affinities,2)
-			for i in 2:size(affinities,1)
+	for k in 2:size(machine_labels,3)
+		for j in 2:size(machine_labels,2)
+			for i in 2:size(machine_labels,1)
 				t=(i,j,k)
 				t1=(i-1,j,k)
 				t2=(i,j-1,k)
@@ -140,6 +167,8 @@ function compute_edges{vol}(volume::Volume{vol},regions)
 			end
 		end
 	end
+	
+	#it iterates throu the dictionary and creates atomicEdges in both directions
 	ret1=AtomicEdge{vol}[
 	AtomicEdge(
 	regions[key[1]],regions[key[2]],
@@ -147,6 +176,7 @@ function compute_edges{vol}(volume::Volume{vol},regions)
 	)
 	for (key,value) in L
 	]
+
 	ret2=AtomicEdge{vol}[
 	AtomicEdge(
 	regions[key[2]],regions[key[1]],
@@ -154,6 +184,8 @@ function compute_edges{vol}(volume::Volume{vol},regions)
 	)
 	for (key,value) in L
 	]
+
+	#it concatenates both arrays into one
 	cat(1,ret1,ret2)
 end
 

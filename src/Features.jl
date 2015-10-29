@@ -1,3 +1,11 @@
+#= 
+Module Features
+
+Contains all features that can be used by Agglomerators.
+features make use of the macro @memoize 
+which uses an ObjectIdDict as a cache
+=#
+
 module Features
 using Volumes
 using Memoize
@@ -11,6 +19,7 @@ end
 @memoize function measure(x::AtomicRegion)
 	length(x.voxels)
 end
+
 @memoize function max_affinity(x::TreeEdge)
 	max(max_affinity(x.left),max_affinity(x.right))
 end
@@ -20,6 +29,7 @@ end
 @memoize function max_affinity(x::EmptyEdge)
 	0.0
 end
+
 @memoize function contact_area(x::AtomicEdge)
 	length(x.edges)
 end
