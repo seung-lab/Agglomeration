@@ -44,11 +44,4 @@ function mean_affinity(x::Edge)
 	sum_affinity(x)/(contact_area(x)+0.01)
 end
 
-@memoize function moments(x::AtomicRegion)
-	prod(map(_->lift_point(_,3),x.voxels))
-end
-@memoize function moments(x::TreeRegion)
-	moments(x.left)*moments(x.right)
-end
-
 end

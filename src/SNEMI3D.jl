@@ -1,23 +1,41 @@
 __precompile__()
 module SNEMI3D
 using Volumes
-export SNEMI3DVolume
+export SNEMI3DTrainVolume, SNEMI3DTestVolume
 
-const SNEMI3DVolume=Volume(expanduser("~/CNN/ds"),:SNEMI3D)
-const SNEMI3DRegions=compute_regions(SNEMI3DVolume)
-const SNEMI3DEdges=compute_edges(SNEMI3DVolume,SNEMI3DRegions)
+SNEMI3D_DATA_PATH="/media/usb0/SNEMI3D"
 
-@generated function Volumes.volume(x::Region{:SNEMI3D})
-	:(SNEMI3DVolume)
+const SNEMI3DTrainVolume=Volume(expanduser("$(SNEMI3D_DATA_PATH)/ds_train"),:SNEMI3DTrain)
+const SNEMI3DTrainRegions=compute_regions(SNEMI3DTrainVolume)
+const SNEMI3DTrainEdges=compute_edges(SNEMI3DTrainVolume,SNEMI3DTrainRegions)
+
+@generated function Volumes.volume(x::Region{:SNEMI3DTrain})
+	:(SNEMI3DTrainVolume)
 end
-@generated function Volumes.volume(x::Edge{:SNEMI3D})
-	:(SNEMI3DVolume)
+@generated function Volumes.volume(x::Edge{:SNEMI3DTrain})
+	:(SNEMI3DTrainVolume)
 end
-@generated function Volumes.regions(x::Volume{:SNEMI3D})
-	:(SNEMI3DRegions)
+@generated function Volumes.regions(x::Volume{:SNEMI3DTrain})
+	:(SNEMI3DTrainRegions)
 end
-@generated function Volumes.edges(x::Volume{:SNEMI3D})
-	:(SNEMI3DEdges)
+@generated function Volumes.edges(x::Volume{:SNEMI3DTrain})
+	:(SNEMI3DTrainEdges)
 end
 
+const SNEMI3DTestVolume=Volume(expanduser("$(SNEMI3D_DATA_PATH)/ds_test"),:SNEMI3DTest)
+const SNEMI3DTestRegions=compute_regions(SNEMI3DTestVolume)
+const SNEMI3DTestEdges=compute_edges(SNEMI3DTestVolume,SNEMI3DTestRegions)
+
+@generated function Volumes.volume(x::Region{:SNEMI3DTest})
+	:(SNEMI3DTestVolume)
+end
+@generated function Volumes.volume(x::Edge{:SNEMI3DTest})
+	:(SNEMI3DTestVolume)
+end
+@generated function Volumes.regions(x::Volume{:SNEMI3DTest})
+	:(SNEMI3DTestRegions)
+end
+@generated function Volumes.edges(x::Volume{:SNEMI3DTest})
+	:(SNEMI3DTestEdges)
+end
 end

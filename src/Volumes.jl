@@ -158,7 +158,7 @@ function compute_edges{vol}(volume::Volume{vol},regions)
 end
 
 @memoize function soft_label(x::AtomicRegion)
-	A=zeros(Int,volume(x).n_human_labels)
+	A=spzeros(Int,volume(x).n_human_labels,1)
 	for v in x.voxels
 		t=volume(x).human_labels[v]
 		if t!=0

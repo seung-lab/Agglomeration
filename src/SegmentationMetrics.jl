@@ -15,9 +15,9 @@ function rand_index(A::Array,B::Array)
 	end
 
 	both=sum(incidence_matrix.^2)
-	total_A=sum(sum(incidence_matrix,1).^2)
-	total_B=sum(sum(incidence_matrix,2).^2)
-	(:split => both/total_A,:merge=>both/total_B)
+	total_A=sum(sum(incidence_matrix,2).^2)
+	total_B=sum(sum(incidence_matrix,1).^2)
+	(:recall=> both/total_A,:precision=>both/total_B)
 end
 end
 

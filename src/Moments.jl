@@ -32,12 +32,19 @@ Base.(:+)(::Zero,x)=x
 Base.(:+)(x,Zero)=x
 
 function lift_point(x,n)
+	t=Float64[1.0,x...]
 	Expansion(tuple(
-	One,
-	Float64[1.0,x...],
-	[Zero() for i in 3:n]...
+	[1/factorial(i)*opow(t,i) for i in 0:n]...
 	)
 	)
+end
+
+function opow(x,n::Int)
+	if n<=0
+		One
+	else
+		x ⊗ opow(x,n-1)
+	end
 end
 
 #=
