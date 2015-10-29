@@ -1,3 +1,11 @@
+#=
+Module Agglomerators
+
+All agglomerator has a array of functions
+and a model that relates this array with and score
+The score is used to decide what to agglomerate
+=#
+
 module Agglomerators
 using DataStructures
 using Base.Collections

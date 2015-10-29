@@ -1,3 +1,10 @@
+#=
+Module volumes
+
+It initializes a volume from a folder path
+
+=#
+
 __precompile__()
 module Volumes
 export Volume
@@ -27,6 +34,9 @@ immutable Volume{name}
 	n_machine_labels::Int
 	n_human_labels::Int
 end
+
+#Volume creates and inmutable Volume given a path to a folder
+#machine and human labels are a sequence. 
 function Volume(path::AbstractString,name::Symbol)
 	affinities=load("$(path)/affinities.jls")
 	machine_labels=convert(Array{Int},load("$(path)/machine_labels.jls"))
