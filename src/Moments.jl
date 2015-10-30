@@ -1,3 +1,10 @@
+#=
+Module Moments
+
+Util for Moments based features
+
+=#
+
 module Moments
 export Expansion,lift_point,⊗
 
