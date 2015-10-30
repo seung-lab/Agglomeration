@@ -111,7 +111,7 @@ function atomic_region_graph{vol}(v::Volume{vol})
 	return rg
 end
 
-function flatten{vol}(rg::RegionGraph{vol})
+function Volumes.flatten{vol}(rg::RegionGraph{vol})
 	v=volume(first(keys(rg)))
 	A=zeros(Int,size(v))
 	function f(x::AtomicRegion,i)
