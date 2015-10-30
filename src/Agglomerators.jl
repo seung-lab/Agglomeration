@@ -115,6 +115,11 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 			orignbs1=A[e[1]]
 			orignbs2=A[e[2]]
 
+			#this is a default dict, if tha key is not in the dictionary
+			#it returns a default value "()->EmptyEdge{vol}()"
+			#Key type is Region{vol}
+			#Value type is Edge{vol}
+			#This datastructe will hold the neighbors of the supervoxel 1
 			nbs1=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
 			nbs2=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
 
