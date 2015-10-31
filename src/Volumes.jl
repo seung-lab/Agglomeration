@@ -8,11 +8,12 @@ It initializes a volume from a folder path
 __precompile__()
 module Volumes
 export Volume
-export AtomicRegion, TreeRegion,Region
+export AtomicRegion, TreeRegion,Region, AggregateRegion
 export AtomicEdge, TreeEdge, EmptyEdge,Edge
 export compute_regions, compute_edges
 export volume,edges,regions
 export soft_label, normalized_soft_label
+export flatten
 
 using Save
 using DataStructures
@@ -60,11 +61,11 @@ type AtomicRegion{vol} <: Region{vol}
 end
 AtomicRegion{vol}(volume::Volume{vol},id::Int)=AtomicRegion{vol}(Vec{3,Int}[],ObjectIdDict(),id)
 
-#=
+
 type AggregateRegion{vol} <: Region{vol}
 	regions::Set{AtomicRegion{vol}}
 end
-=#
+
 type TreeRegion{vol} <: Region{vol}
 	left::Region{vol}
 	right::Region{vol}
@@ -117,6 +118,31 @@ function compute_regions(volume::Volume)
 		end
 	end
 	ret
+end
+
+function atomic_regions{vol}(x::TreeRegion{vol})
+	cat(1,atomic_regions(x.left),atomic_regions(x.right))
+end
+
+function atomic_regions{vol}(x::AtomicRegion{vol})
+	AtomicRegion{vol}[x]
+end
+
+function atomic_regions{vol}(x::AggregateRegion{vol})
+	collect(x.regions)
+end
+
+function flatten(x::Region)
+	flatten(x,x->1)
+end
+function flatten(x::Region,f::Function)
+	A=zeros(size(volume(x)))
+	for r in atomic_regions(x)
+		for v in r.voxels
+			A[v...]=f(r)
+		end
+	end
+	A
 end
 
 function compute_edges{vol}(volume::Volume{vol},regions)
