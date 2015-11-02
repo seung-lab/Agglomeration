@@ -12,6 +12,7 @@ using Base.Collections
 using Volumes
 using Iterators
 using DecisionTree
+using MST
  
 export Agglomerator, 
 			 LinearAgglomerator,
@@ -137,37 +138,16 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 		Collections.enqueue!(pq,e,ag(e))
 	end
 
+	mst = MST.newMST()
 	ignore = 0
 	while(!isempty(pq))
 		e, priority = dequeue2!(pq)
 		
 
 		if haskey(A, e[1]) && haskey(A,e[2])
-
-			#Map of Neighboors Regions To Edges
-			orignbs1=A[e[1]] 
-			orignbs2=A[e[2]] 
-
-			#this is a default dict, if the key is not in the dictionary
-			#it returns a default value "()->EmptyEdge{vol}()"
-			#Key type is Region{vol}
-			#Value type is Edge{vol}
-			#This datastructe will hold the neighbors of the Region 1
-			nbs1=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
-			nbs2=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
-
-
-			#Not sure why is it necesary to convert from a Dict to a DefaultDict
-			for r in keys(orignbs1)
-
-				#Also remove them from the Priority Queue
-				#Collections.dequeue!(pq,(e[1],r,orignbs1[r]) )
-
-				nbs1[r]=orignbs1[r]
-			end
-			for r in keys(orignbs2)
-				nbs2[r]=orignbs2[r]
-			end
+		
+			nbs1=to_default_dict( A[e[1]] )
+			nbs2=to_default_dict( A[e[2]] )
 
 			#Delete the edges connecting these two regions
 			delete!(nbs1,e[2])
@@ -178,8 +158,8 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 			#println(length(all_nbs))
 
 			new_region=TreeRegion(e[1],e[2], priority)
-			#println("Merging $priority")
 
+			MST.add_edge(mst, new_region)
 			#Adds new_region key with default value
 			A[new_region]
 
@@ -206,11 +186,35 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 	end
 	println("Merged to $(length(keys(A))) regions")
 	println("Ignore $ignore edges")
+	MST.save(mst)
 	return A
 	#println(sum([n_svoxels(x) for x in keys(A)]))
 end
 
 
+#converts a Dict{Region{vol},Edge{vol}} into a default dict,
+#if the key is not in the dictionary it returns a default value "()->EmptyEdge{vol}()"
+function to_default_dict{vol}(neighboors::Dict{Region{vol},Edge{vol}})
+
+
+	default_dict=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
+	
+	for r in keys(neighboors)
+		default_dict[r]=neighboors[r]
+	end
+
+
+	# #Also remove them from the Priority Queue
+	# if haskey(pq, (e[1],r,orignbs1[r])) 
+	# 	Collections.dequeue!(pq, (e[1],r,orignbs1[r]) )
+	# end
+	# if haskey(pq, (r,e[1],orignbs1[r])) 
+	# 	Collections.dequeue!(pq, (r,e[1],orignbs1[r]) )
+	# end
+
+	return default_dict
 end
 
 
+
+end
