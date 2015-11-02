@@ -28,6 +28,7 @@ UnorderedPair{T}(x::T,y::T)=UnorderedPair{T}((min(x,y),max(x,y)))
 Base.getindex(p::UnorderedPair,i::Int)=p.data[i]
 
 immutable Volume{name}
+	image::Array{Float32,3}
 	affinities::Array{Float32,4}
 	machine_labels::Array{Int,3}
 	human_labels::Array{Int,3}
@@ -39,6 +40,7 @@ end
 #Volume creates and inmutable Volume given a path to a folder
 #machine and human labels are a sequence. 
 function Volume(path::AbstractString,name::Symbol)
+	image=convert(Array{Float32},load("$(path)/image.jls"))
 	affinities=load("$(path)/affinities.jls")
 	machine_labels=convert(Array{Int},load("$(path)/machine_labels.jls"))
 	human_labels=convert(Array{Int},load("$(path)/human_labels.jls"))
@@ -47,7 +49,7 @@ function Volume(path::AbstractString,name::Symbol)
 	s=size(machine_labels)
 	n=maximum(machine_labels)
 	m=maximum(human_labels)
-	Volume{name}(affinities,machine_labels,human_labels,s,n,m)
+	Volume{name}(image,affinities,machine_labels,human_labels,s,n,m)
 end
 Base.size(v::Volume)=v.size
 Base.size(v::Volume,i)=v.size[i]
