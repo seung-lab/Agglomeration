@@ -39,6 +39,7 @@ print_error(rg)
 
 #oracle.examples now contains all examples that the oracle
 #saw during agglomeration.
+
 println("$(length(oracle.examples)) training examples")
 
 #train the decision tree agglomerator on the set of examples

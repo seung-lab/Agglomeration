@@ -12,10 +12,28 @@ using Base.Collections
 using Volumes
 using Iterators
 using DecisionTree
-
-export Agglomerator, LinearAgglomerator, AccumulatingAgglomerator, DecisionTreeAgglomerator, OracleAgglomerator
+using MST
+ 
+export Agglomerator, 
+			 LinearAgglomerator,
+			 AccumulatingAgglomerator, 
+			 DecisionTreeAgglomerator, 
+			 OracleAgglomerator
 export atomic_region_graph, RegionGraph,apply_agglomeration!
 export train!
+
+#Util
+function dequeue2!(pq::PriorityQueue)
+    x = pq.xs[1]
+    y = pop!(pq.xs)
+    if !isempty(pq)
+        pq.xs[1] = y
+        pq.index[y.first] = 1
+        Collections.percolate_down!(pq, 1)
+    end
+    delete!(pq.index, x.first)
+    return x
+end
 
 abstract Agglomerator
 
@@ -74,12 +92,23 @@ n_svoxels(r::TreeRegion)=n_svoxels(r.right)+n_svoxels(r.left)
 =#
 
 typealias RegionGraph{vol} DefaultDict{Region{vol},Dict{Region{vol},Edge{vol}}}
+
+
+#atomic_region_graph iterates throu an array of Atomic Edges to build a dictionary
+#where the key is a region, and the value is another dictionary where the key is neighbour region to the first
+#and the value of the second dictionary is an AtomicEdge between this two labels.
+#Because two Regions might be connect by more that one voxels, e.i. it might have many AtomicEdges linking one to
+#the other. the second edge value might be overwritten many times.
 function atomic_region_graph{vol}(v::Volume{vol})
-	rg=DefaultDict(Region{vol},Dict{Region{vol},Edge{vol}},()->Dict{Region{vol},Edge{vol}}())
+	rg=DefaultDict(Region{vol},
+								 Dict{Region{vol},Edge{vol}},
+								 ()->Dict{Region{vol},Edge{vol}}())
+
+  #edges contains an array of AtomicEdges retuned by compute_edges()
 	for e in edges(v)
 		rg[e.head][e.tail]=e
 	end
-	rg
+	return rg
 end
 
 function Volumes.flatten{vol}(rg::RegionGraph{vol})
@@ -98,7 +127,7 @@ function Volumes.flatten{vol}(rg::RegionGraph{vol})
 	for (r,i) in zip(keys(rg),countfrom(1))
 		f(r,i)
 	end
-	A
+	return A
 end
 
 function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, threshold)
@@ -108,44 +137,40 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 	for e in edges
 		Collections.enqueue!(pq,e,ag(e))
 	end
-	while(!isempty(pq)>0)
-		e=Collections.dequeue!(pq)
+
+	mst = MST.newMST()
+	ignore = 0
+	while(!isempty(pq))
+		e, priority = dequeue2!(pq)
+		
 		if haskey(A, e[1]) && haskey(A,e[2])
+		
+			nbs1=to_default_dict( A[e[1]] )
+			nbs2=to_default_dict( A[e[2]] )
 
-			orignbs1=A[e[1]]
-			orignbs2=A[e[2]]
-
-			#this is a default dict, if tha key is not in the dictionary
-			#it returns a default value "()->EmptyEdge{vol}()"
-			#Key type is Region{vol}
-			#Value type is Edge{vol}
-			#This datastructe will hold the neighbors of the supervoxel 1
-			nbs1=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
-			nbs2=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
-
-			for r in keys(orignbs1)
-				nbs1[r]=orignbs1[r]
-			end
-			for r in keys(orignbs2)
-				nbs2[r]=orignbs2[r]
-			end
-
+			#Delete the edges connecting these two regions
 			delete!(nbs1,e[2])
 			delete!(nbs2,e[1])
 			
+			#Create a set with all neighboors regions of this two regions
 			all_nbs=Set(chain(keys(nbs1),keys(nbs2)))
 			#println(length(all_nbs))
 
-			new_region=TreeRegion(e[1],e[2])
+			new_region=TreeRegion(e[1],e[2], priority)
+
+			MST.add_edge(mst, new_region)
+			#Adds new_region key with default value
 			A[new_region]
+
 			for r in all_nbs
 				new_edge=TreeEdge(nbs1[r],nbs2[r])
 				A[new_region][r]=new_edge
 				A[r][new_region]=new_edge
 				
+				#Remove the old regions from the RegionGraph
 				delete!(A[r],e[1])
 				delete!(A[r],e[2])
-
+		
 				tmp=ag((new_region,r,new_edge))
 				if tmp > threshold
 					Collections.enqueue!(pq,(new_region,r,new_edge),tmp)
@@ -153,12 +178,42 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 			end
 			delete!(A,e[1])
 			delete!(A,e[2])
+		else
+			ignore = ignore + 1
 		end
+
 	end
 	println("Merged to $(length(keys(A))) regions")
-	A
+	println("Ignore $ignore edges")
+	MST.save(mst)
+	return A
 	#println(sum([n_svoxels(x) for x in keys(A)]))
 end
+
+
+#converts a Dict{Region{vol},Edge{vol}} into a default dict,
+#if the key is not in the dictionary it returns a default value "()->EmptyEdge{vol}()"
+function to_default_dict{vol}(neighboors::Dict{Region{vol},Edge{vol}})
+
+
+	default_dict=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
+	
+	for r in keys(neighboors)
+		default_dict[r]=neighboors[r]
+	end
+
+
+	# #Also remove them from the Priority Queue
+	# if haskey(pq, (e[1],r,orignbs1[r])) 
+	# 	Collections.dequeue!(pq, (e[1],r,orignbs1[r]) )
+	# end
+	# if haskey(pq, (r,e[1],orignbs1[r])) 
+	# 	Collections.dequeue!(pq, (r,e[1],orignbs1[r]) )
+	# end
+
+	return default_dict
+end
+
 
 
 end
