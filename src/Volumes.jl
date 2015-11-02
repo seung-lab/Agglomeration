@@ -129,11 +129,6 @@ function compute_regions(volume::Volume)
 	ret
 end
 
-<<<<<<< HEAD
-
-#compute_edges iterates throuh all voxels in the machine_labels
-#to returns an array of atomic edges
-=======
 function atomic_regions{vol}(x::TreeRegion{vol})
 	cat(1,atomic_regions(x.left),atomic_regions(x.right))
 end
@@ -159,7 +154,6 @@ function flatten(x::Region,f::Function)
 	A
 end
 
->>>>>>> update
 function compute_edges{vol}(volume::Volume{vol},regions)
 
 	machine_labels=volume.machine_labels

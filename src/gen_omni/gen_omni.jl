@@ -4,7 +4,7 @@ using HDF5
 name{vol}(v::Volume{vol})=string(vol)
 
 #change to seungmount/research/Jingpeng/09_pypipeline/omnify/bin
-OMNI_DIR="/home/jonathan/omni"
+OMNI_DIR="/usr/people/it2/seungmount/research/Jingpeng/09_pypipeline/omnify/bin"
 
 for v in [SNEMI3DTestVolume,SNEMI3DTrainVolume]
 	machine_labels=convert(Array{Uint32},v.machine_labels)
