@@ -40,16 +40,16 @@ print_error(rg)
 #oracle.examples now contains all examples that the oracle
 #saw during agglomeration.
 
-println("$(length(oracle.examples)) training examples")
+# println("$(length(oracle.examples)) training examples")
 
-#train the decision tree agglomerator on the set of examples
-train!(decision_ag,oracle.examples)
+# #train the decision tree agglomerator on the set of examples
+# train!(decision_ag,oracle.examples)
 
-#Run the decision tree agglomerator on a new volume.
-ag=decision_ag
-rg=atomic_region_graph(SNEMI3DTestVolume)
-print_error(rg)
-for threshold in reverse(0.3:0.05:0.8)
-	apply_agglomeration!(rg,ag,0.75)
-	print_error(rg)
-end
+# #Run the decision tree agglomerator on a new volume.
+# ag=decision_ag
+# rg=atomic_region_graph(SNEMI3DTestVolume)
+# print_error(rg)
+# for threshold in reverse(0.3:0.05:0.8)
+# 	apply_agglomeration!(rg,ag,0.75)
+# 	print_error(rg)
+# end
