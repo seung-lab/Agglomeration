@@ -1,0 +1,3 @@
+[submodule "deps/seg-error"]
+	path = deps/seg-error
+	url = https://github.com/seung-lab/segerror.git
