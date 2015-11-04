@@ -16,7 +16,8 @@ module SNEMI3D
 using Volumes
 export SNEMI3DTrainVolume, SNEMI3DTestVolume
 
-SNEMI3D_DATA_PATH="~/seungmount/research/Jonathan/SNEMI3D"
+#SNEMI3D_DATA_PATH="~/seungmount/research/Jonathan/SNEMI3D"
+SNEMI3D_DATA_PATH="/media/usb0/SNEMI3D"
 
 const SNEMI3DTrainVolume=Volume(expanduser("$(SNEMI3D_DATA_PATH)/ds_train"),:SNEMI3DTrain)
 const SNEMI3DTrainRegions=compute_regions(SNEMI3DTrainVolume)

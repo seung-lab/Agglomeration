@@ -37,7 +37,6 @@ immutable Volume{name}
 	n_human_labels::Int
 end
 
-#Volume creates and inmutable Volume given a path to a folder
 #machine and human labels are a sequence of integers with no missing values.
 #Both are a 3d volume of Int 
 function Volume(path::AbstractString,name::Symbol)
