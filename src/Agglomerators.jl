@@ -161,7 +161,7 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 
 			new_region=TreeRegion(e[1],e[2], priority)
 
-			MST.add_edge(mst, new_region)
+			MST.add_edge(mst, new_region, e[3])
 			#Adds new_region key with default value
 			A[new_region]
 
