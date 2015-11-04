@@ -32,7 +32,7 @@ end
 rg=atomic_region_graph(SNEMI3DTrainVolume)
 print_error(rg)
 #apply the oracle agglomerator with threshold of 0.7
-apply_agglomeration!(rg,oracle,0.75)
+apply_agglomeration!(rg,oracle,0.5)
 print_error(rg)
 
 #oracle.examples now contains all examples that the oracle
@@ -40,7 +40,7 @@ print_error(rg)
 
 println("$(length(oracle.examples)) training examples")
 
-#include("curriculum.jl")
+include("curriculum.jl")
 #train the decision tree agglomerator on the set of examples
 train!(decision_ag, oracle.examples,OracleAgglomerator())
 
