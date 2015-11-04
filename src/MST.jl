@@ -19,10 +19,10 @@ end
 
 function add_edge{vol}(mst::_mst, region::TreeRegion{vol}, edge::Edge{vol})
 
-  regions_left = get_atomic_regions(region.left)
-  regions_right = get_atomic_regions(region.right)
-
-  edge = find_adjacent_edge(edge, regions_left, regions_right )
+  edge = find_adjacent_edge(edge)
+  if edge == nothing 
+    println("couldn't find adjacent edge")
+  end
 
   if mst.last > region.weight
     weight = mst.last
@@ -31,57 +31,32 @@ function add_edge{vol}(mst::_mst, region::TreeRegion{vol}, edge::Edge{vol})
     mst.last = weight
   end
 
-  if edge != Void 
-    println(edge.head.id)
-    push!(mst.dend, [UInt32(edge.head.id), UInt32(edge.tail.id)])
-    push!(mst.dendValues, Float32(region.weight))
-  end
-end
-
-function get_atomic_regions{vol}(region::Region{vol}) 
-
-  regions = []
-  recurse_region(region, regions)
-  return regions
-end
-
-
-
-function recurse_region{vol}(region::TreeRegion{vol}, regions)
-
-  recurse_region(region.left, regions)
-  recurse_region(region.right, regions)
+  push!(mst.dend, [UInt32(edge.head.id), UInt32(edge.tail.id)])
+  push!(mst.dendValues, Float32(region.weight))
 
 end
-
-function recurse_region{vol}(region::AtomicRegion{vol}, regions)
-  push!(regions,region.id)
-  return
-end
-
-function find_adjacent_edge{vol}(edge::TreeEdge{vol}, regions_left, regions_right) 
+ 
+function find_adjacent_edge{vol}(edge::TreeEdge{vol}) 
   
-  left = find_adjacent_edge(edge.left, regions_left, regions_right) 
-  if edge != Void
-    return left
+  if !isa( edge.left, EmptyEdge)
+    left = find_adjacent_edge(edge.left)
+    if left != nothing
+      return left
+    end 
   end
 
-  right = find_adjacent_edge(edge.right, regions_left, regions_right)
-  return right
-  
-end
-function find_adjacent_edge{vol}(edge::AtomicEdge{vol}, regions_left, regions_right) 
-
-  # println(edge.head.id)
-  if edge.head.id in regions_left && edge.tail.id in regions_right
-    return edge
+  if !isa( edge.right, EmptyEdge) 
+    right =  find_adjacent_edge(edge.right)
+    if right != nothing
+      return right
+    end
   end
 
-  return Void
+  return nothing
 end
 
-function find_adjacent_edge{vol}(edge::EmptyEdge{vol}, regions_left, regions_right)
-  return Void
+function find_adjacent_edge{vol}(edge::AtomicEdge{vol}) 
+  return edge
 end
 
 
@@ -113,9 +88,6 @@ function save(mst::_mst)
 
   # end
   # close(f)
-
-  # writedlm("mst.dend", mst.dend)
-  # writedlm("mst.dendValues", mst.dendValues)
 
 
   run(`rm -f ./machine_labels.h5`)
