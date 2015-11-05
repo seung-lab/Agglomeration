@@ -1,4 +1,3 @@
-
 #=
 Module SNEMI3D
 
