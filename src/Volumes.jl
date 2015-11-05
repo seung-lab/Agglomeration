@@ -37,6 +37,8 @@ immutable Volume{name}
 	n_human_labels::Int
 end
 
+
+
 #machine and human labels are a sequence of integers with no missing values.
 #Both are a 3d volume of Int 
 function Volume(path::AbstractString,name::Symbol)
