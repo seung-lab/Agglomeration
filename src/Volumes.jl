@@ -59,6 +59,7 @@ Base.size(v::Volume,i)=v.size[i]
 @inline Base.getindex{T,n}(A::Array{T,n},i::Vec{n,Int})=A[i...]
 
 abstract Region{vol}
+abstract Edge{vol}
 type AtomicRegion{vol} <: Region{vol}
 	voxels::Array{Vec{3,Int},1}
 	neighbours::ObjectIdDict
@@ -74,6 +75,7 @@ end
 type TreeRegion{vol} <: Region{vol}
 	left::Region{vol}
 	right::Region{vol}
+	edge::Edge{vol}
 	weight::Real
 end
 
@@ -91,7 +93,6 @@ function Base.union{vol}(r1::Region{vol},r2::Region{vol})
 end
 =#
 
-abstract Edge{vol}
 type AtomicEdge{vol} <: Edge{vol}
 	head::AtomicRegion{vol}
 	tail::AtomicRegion{vol}
@@ -103,6 +104,9 @@ type TreeEdge{vol} <: Edge{vol}
 end
 immutable EmptyEdge{vol} <: Edge{vol}
 end
+TreeEdge{vol}(x::EmptyEdge{vol},y::Edge{vol})=y
+TreeEdge{vol}(x::Edge{vol},y::EmptyEdge{vol})=x
+TreeEdge{vol}(x::EmptyEdge{vol},y::EmptyEdge{vol})=EmptyEdge{vol}()
 
 #=
 type AggregateEdge{vol}
