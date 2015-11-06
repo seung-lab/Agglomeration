@@ -1,6 +1,8 @@
 using DataStructures
 using Iterators
 
+#In this training procedure, we restrict training so that for each region,
+#we train only the top k correct merges involving this region.
 function experimental_train!(ag,examples,goal; k=5,its=2,pos_threshold=0.8,neg_threshold=0.2)
 	positive_examples=filter(x->goal(x)>=pos_threshold,examples)
 	negative_examples=filter(x->goal(x)<neg_threshold,examples)

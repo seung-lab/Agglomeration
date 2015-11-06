@@ -45,7 +45,7 @@ type DecisionTreeAgglomerator <: Agglomerator
 	features::Array{Function,1}
 	model
 	function DecisionTreeAgglomerator(features)
-		new(features,Void)
+		new(features,nothing)
 	end
 end
 
@@ -159,7 +159,7 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 			all_nbs=Set(chain(keys(nbs1),keys(nbs2)))
 			#println(length(all_nbs))
 
-			new_region=TreeRegion(e[1],e[2], priority)
+			new_region=TreeRegion(e[1],e[2],e[3], priority)
 
 			MST.add_edge(mst, new_region, e[3])
 			#Adds new_region key with default value
