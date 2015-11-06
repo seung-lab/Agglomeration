@@ -4,8 +4,9 @@ and it constructs a volume
 =#
 
 module HDF5Volume
+using Agglomerator #import paths to other modules
 
-import Volumes
+using Volumes 
 using HDF5
 using Logging
 

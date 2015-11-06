@@ -1,4 +1,6 @@
 module Vis
+using Agglomerator #import paths to other modules
+
 #Usage:
 #call vis_init()
 #then call disp(...) where ... is a three-dimensional array of floats in [0.0,1.0] or a tuple thereof

@@ -1,0 +1,10 @@
+language: julia
+os:
+  - linux
+julia:
+  - 0.4.0
+notifications:
+  email: true
+
+install:
+ - pip install -r deps/python_requirements.txt

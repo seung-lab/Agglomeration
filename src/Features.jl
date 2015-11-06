@@ -7,6 +7,8 @@ which uses an ObjectIdDict as a cache
 =#
 
 module Features
+using Agglomerator #import paths to other modules
+
 using Volumes
 using Memoize
 using Moments

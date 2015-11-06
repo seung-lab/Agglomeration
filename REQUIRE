@@ -1,6 +1,10 @@
+julia 0.4
 DataStructures
 Iterators
 Memoize
 FixedSizeArrays
 DecisionTree
 Logging
+PyCall
+ArgParse
+HDF5

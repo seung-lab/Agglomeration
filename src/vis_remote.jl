@@ -1,3 +1,5 @@
+using Agglomerator #import paths to other modules
+
 using PyCall
 using Vis
 

@@ -1,4 +1,5 @@
 module MST
+using Agglomerator #import paths to other modules
 
 using Volumes
 using HDF5

@@ -6,6 +6,8 @@ Util for Moments based features
 =#
 
 module Moments
+using Agglomerator #import paths to other modules
+
 export Expansion,lift_point,⊗
 
 immutable Expansion
