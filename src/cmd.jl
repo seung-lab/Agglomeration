@@ -4,12 +4,14 @@ it takes path to files necessary to run agglomeration
 
 =#
 module cmd
+using Agglomerator #import paths to other modules
 
-using ArgParse
-using Logging
 using HDF5Volume
 
+using ArgParse , Logging
 Logging.configure(level=DEBUG)
+
+
 
 function parse_commandline(possible_agglomerators)
     s = ArgParseSettings()
@@ -32,7 +34,7 @@ function parse_commandline(possible_agglomerators)
         "-g","--agglomerator"
             help = "Agglomeration type to use\n Options:\n $( join(possible_agglomerators, " , ", " or ") )"
             arg_type = ASCIIString
-            default = "oracle"
+            default =  possible_agglomerators[1]
         "-o", "--output"
             help = "Agglomeration same format as watershed output"
             required = true
@@ -98,4 +100,4 @@ end
 
 main()
 
-end
+end #module

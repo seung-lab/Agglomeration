@@ -5,17 +5,14 @@ All agglomerator has a array of functions
 and a model that relates this array with and score
 The score is used to decide what to agglomerate
 =#
-
 module Agglomerators
-using DataStructures
-using Base.Collections
-using Volumes
-using Iterators
-using DecisionTree
-using MST
+using Agglomerator #import paths to other modules
 
-export Agglomerator, 
-LinearAgglomerator,
+
+using Volumes, MST
+using DataStructures, Base.Collections, Iterators, DecisionTree, Volumes
+
+export LinearAgglomerator,
 AccumulatingAgglomerator, 
 DecisionTreeAgglomerator, 
 OracleAgglomerator

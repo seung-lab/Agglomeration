@@ -3,6 +3,7 @@ Module Save
 =#
 
 module Save
+using Agglomerator #import paths to other modules
 
 export save, load, save_binary, save_znn,load_binary,load_znn
 

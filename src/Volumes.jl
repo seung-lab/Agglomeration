@@ -7,6 +7,11 @@ It initializes a volume from a folder path
 
 __precompile__()
 module Volumes
+using Agglomerator #import paths to other modules
+
+using Save
+using DataStructures, FixedSizeArrays, Iterators, Memoize
+
 export Volume
 export AtomicRegion, TreeRegion,Region, AggregateRegion
 export AtomicEdge, TreeEdge, EmptyEdge,Edge
@@ -15,11 +20,7 @@ export volume,edges,regions
 export soft_label, normalized_soft_label
 export flatten
 
-using Save
-using DataStructures
-using FixedSizeArrays
-using Iterators
-using Memoize
+
 
 immutable UnorderedPair{T}
 	data::Tuple{T,T}
@@ -42,10 +43,10 @@ end
 #machine and human labels are a sequence of integers with no missing values.
 #Both are a 3d volume of Int 
 function Volume(path::AbstractString,name::Symbol)
-	image=convert(Array{Float32},load("$(path)/image.jls"))
-	affinities=load("$(path)/affinities.jls")
-	machine_labels=convert(Array{Int},load("$(path)/machine_labels.jls"))
-	human_labels=convert(Array{Int},load("$(path)/human_labels.jls"))
+	image=convert(Array{Float32}, Save.load("$(path)/image.jls"))
+	affinities= Save.load("$(path)/affinities.jls")
+	machine_labels=convert(Array{Int}, Save.load("$(path)/machine_labels.jls"))
+	human_labels=convert(Array{Int}, Save.load("$(path)/human_labels.jls"))
 	@assert size(machine_labels)==size(human_labels)==size(affinities)[1:3]
 
 	s=size(machine_labels)

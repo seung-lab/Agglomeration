@@ -1,9 +1,5 @@
-using SNEMI3D
-using Agglomerators
-using Features
-using Volumes
-using SegmentationMetrics
-using Vis
+using Agglomerator #import paths to other modules
+using SNEMI3D, Agglomerators, Features, Volumes, SegmentationMetrics, Vis
 
 #Define a decision tree agglomerator and a linear classifier
 decision_ag=DecisionTreeAgglomerator(
@@ -29,7 +25,7 @@ Function[x->max_affinity(x[3])
 oracle=AccumulatingAgglomerator(OracleAgglomerator())
 
 function print_error(rg)
-	rand_index(volume(collect(keys(rg))[1]).human_labels, rg|>flatten) |> println
+	rand_index(volume(collect(keys(rg))[1]).human_labels, rg|> Volumes.flatten) |> println
 end
 
 #initialize an oversegmentation of the SNEMI3D volume
@@ -46,7 +42,7 @@ println("$(length(oracle.examples)) training examples")
 
 #include("curriculum.jl")
 #train the decision tree agglomerator on the set of examples
-experimental_train!(decision_ag,oracle.examples,OracleAgglomerator())
+train!(decision_ag, oracle.examples,OracleAgglomerator())
 
 #Run the decision tree agglomerator on a new volume.
 ag=decision_ag
