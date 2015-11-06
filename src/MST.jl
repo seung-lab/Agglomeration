@@ -7,7 +7,7 @@ using SNEMI3D
 
 
 type _mst 
-  dend
+  dend::Array{Array{UInt32,1},1}
   dendValues::Array{Float32,1}
   last::Float32
 end
@@ -32,7 +32,7 @@ function add_edge{vol}(mst::_mst, region::TreeRegion{vol}, edge::Edge{vol})
     mst.last = weight
   end
 
-  push!(mst.dend, [UInt32(edge.head.id), UInt32(edge.tail.id)])
+  push!(mst.dend, UInt32[UInt32(edge.head.id), UInt32(edge.tail.id)])
   push!(mst.dendValues, Float32(region.weight))
 
 end
