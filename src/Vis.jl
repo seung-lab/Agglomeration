@@ -16,10 +16,12 @@ function disp(viewer,x)
 	@spawnat (viewer[1]) Main.disp_remote(x)
 	#end
 end
-disp(x)=disp(last(viewers),x)
+disp(x)=disp(if length(viewers)==0; vis_init(); else last(viewers); end,x)
 function new_colormap(;frac=1.0,zero_color=Float32[0.0,0.0,0.0,0.0])
 	colormap=DefaultDict(()->Float32[rand(),rand(),rand(),if rand()<=frac; 1.0; else 0.0; end])
 	colormap[0]=zero_color
+	colormap[1]=Float32[0.0,1.0,0.0,1.0]
+	colormap[2]=Float32[0.0,1.0,1.0,1.0]
 	colormap
 end
 function colorize{T}(A::Array{T,3};colormap=new_colormap())
