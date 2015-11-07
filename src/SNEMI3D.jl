@@ -15,8 +15,7 @@ using Agglomerator #import paths to other modules
 using Volumes
 export SNEMI3DTrainVolume, SNEMI3DTestVolume
 
-#SNEMI3D_DATA_PATH="~/seungmount/research/Jonathan/SNEMI3D"
-SNEMI3D_DATA_PATH=string( dirname(@__FILE__) ,"/../test/datasets")
+SNEMI3D_DATA_PATH= abspath(string( dirname(@__FILE__) ,"/../test/datasets"))
 
 const SNEMI3DTrainVolume=Volumes.Volume(expanduser("$(SNEMI3D_DATA_PATH)/ds_train"),:SNEMI3DTrain)
 const SNEMI3DTrainRegions=Volumes.compute_regions(SNEMI3DTrainVolume)

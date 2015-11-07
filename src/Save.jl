@@ -5,6 +5,10 @@ Module Save
 module Save
 using Agglomerator #import paths to other modules
 
+using  Logging
+Logging.configure(level=DEBUG)
+
+
 export save, load, save_binary, save_znn,load_binary,load_znn
 
 function save(file::AbstractString,x)
@@ -57,7 +61,15 @@ function load_znn(prefix::AbstractString)
 	close(f2)
 	A
 end
-load(file::AbstractString)=deserialize(open(file,"r"))
+
+function load(file::AbstractString)
+	if !isfile(file)
+    Logging.critical("file path doesn't exist: $file ")
+	end
+
+
+	return deserialize(open(file,"r"))
+end
 function load_binary(prefix::AbstractString)
 	f2=open("$(prefix).meta","r")
 	spec=parse(readline(f2))
