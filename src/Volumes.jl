@@ -19,6 +19,7 @@ export compute_regions, compute_edges
 export volume,edges,regions
 export soft_label, normalized_soft_label
 export flatten
+export RegionGraph, atomic_region_graph
 
 
 
@@ -238,5 +239,44 @@ end
 function normalized_soft_label(x::Region)
 	t=soft_label(x)
 	t/(norm(t)+0.01)
+end
+
+typealias RegionGraph{vol} DefaultDict{Region{vol},Dict{Region{vol},Edge{vol}}}
+
+#atomic_region_graph iterates throu an array of Atomic Edges to build a dictionary
+#where the key is a region, and the value is another dictionary where the key is neighbour region to the first
+#and the value of the second dictionary is an AtomicEdge between this two labels.
+#Because two Regions might be connect by more that one voxels, e.i. it might have many AtomicEdges linking one to
+#the other. the second edge value might be overwritten many times.
+
+#^^ The comment above is slightly incorrect. An atomic edge contains all the voxels connecting two atomic regions
+function atomic_region_graph{vol}(v::Volume{vol})
+	rg=DefaultDict(Region{vol},
+	Dict{Region{vol},Edge{vol}},
+	()->Dict{Region{vol},Edge{vol}}())
+
+	#edges contains an array of AtomicEdges retuned by compute_edges()
+	for e in edges(v)
+		rg[e.head][e.tail]=e
+	end
+	return rg
+end
+function flatten{vol}(rg::RegionGraph{vol})
+	v=volume(first(keys(rg)))
+	A=zeros(Int,size(v))
+	function f(x::AtomicRegion,i)
+		for v in x.voxels
+			A[v[1],v[2],v[3]]=i
+		end
+	end
+	function f(x::TreeRegion,i)
+		f(x.left,i)
+		f(x.right,i)
+	end
+	#todo: change to a linear pass over A
+	for (r,i) in zip(keys(rg),countfrom(1))
+		f(r,i)
+	end
+	return A
 end
 end

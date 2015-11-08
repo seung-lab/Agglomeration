@@ -16,7 +16,7 @@ export LinearAgglomerator,
 AccumulatingAgglomerator, 
 DecisionTreeAgglomerator, 
 OracleAgglomerator
-export atomic_region_graph, RegionGraph,apply_agglomeration!
+export atomic_region_graph, apply_agglomeration!
 export train!
 
 #Util
@@ -83,49 +83,8 @@ function train!(ag::Agglomerator,examples)
 	train!(ag,examples,OracleAgglomerator())
 end
 
-n_svoxels(r::AtomicRegion)=1
-n_svoxels(r::TreeRegion)=n_svoxels(r.right)+n_svoxels(r.left)
-
-typealias RegionGraph{vol} DefaultDict{Region{vol},Dict{Region{vol},Edge{vol}}}
-
-
-#atomic_region_graph iterates throu an array of Atomic Edges to build a dictionary
-#where the key is a region, and the value is another dictionary where the key is neighbour region to the first
-#and the value of the second dictionary is an AtomicEdge between this two labels.
-#Because two Regions might be connect by more that one voxels, e.i. it might have many AtomicEdges linking one to
-#the other. the second edge value might be overwritten many times.
-
-#^^ The comment above is slightly incorrect. An atomic edge contains all the voxels connecting two atomic regions
-function atomic_region_graph{vol}(v::Volume{vol})
-	rg=DefaultDict(Region{vol},
-	Dict{Region{vol},Edge{vol}},
-	()->Dict{Region{vol},Edge{vol}}())
-
-	#edges contains an array of AtomicEdges retuned by compute_edges()
-	for e in edges(v)
-		rg[e.head][e.tail]=e
-	end
-	return rg
-end
-
-function Volumes.flatten{vol}(rg::RegionGraph{vol})
-	v=volume(first(keys(rg)))
-	A=zeros(Int,size(v))
-	function f(x::AtomicRegion,i)
-		for v in x.voxels
-			A[v[1],v[2],v[3]]=i
-		end
-	end
-	function f(x::TreeRegion,i)
-		f(x.left,i)
-		f(x.right,i)
-	end
-	#todo: change to a linear pass over A
-	for (r,i) in zip(keys(rg),countfrom(1))
-		f(r,i)
-	end
-	return A
-end
+#n_svoxels(r::AtomicRegion)=1
+#n_svoxels(r::TreeRegion)=n_svoxels(r.right)+n_svoxels(r.left)
 
 function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, threshold)
 	#println(sum([n_svoxels(x) for x in keys(A)]))
@@ -138,7 +97,7 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 		end
 	end
 
-	mst = MST.newMST()
+	#mst = MST.newMST()
 	ignore = 0
 	while(!isempty(pq))
 		e, priority = dequeue2!(pq)
@@ -158,7 +117,7 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 
 			new_region=TreeRegion(e[1],e[2],e[3], priority)
 
-			MST.add_edge(mst, new_region, e[3])
+			#MST.add_edge(mst, new_region, e[3])
 			#Adds new_region key with default value
 			A[new_region]
 
@@ -185,7 +144,7 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 	end
 	println("Merged to $(length(keys(A))) regions")
 	println("Ignored $ignore edges")
-	MST.save(mst)
+	#MST.save(mst)
 	#println(sum([n_svoxels(x) for x in keys(A)]))
 	return A
 end

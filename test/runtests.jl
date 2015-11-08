@@ -1,5 +1,6 @@
 using Agglomerator
 using Base.Test
+using MST
 
 # write your own tests here
 
@@ -36,7 +37,7 @@ end
 rg=atomic_region_graph(SNEMI3DTrainVolume)
 print_error(rg)
 #apply the oracle agglomerator with threshold of 0.7
-apply_agglomeration!(rg,oracle,0.25)
+apply_agglomeration!(rg,oracle,0.5)
 print_error(rg)
 
 #oracle.examples now contains all examples that the oracle
@@ -52,11 +53,15 @@ train!(decision_ag, oracle.examples ,OracleAgglomerator())
 #Run the decision tree agglomerator on a new volume.
 ag=decision_ag
 rg=atomic_region_graph(SNEMI3DTestVolume)
+println(length(keys(rg)))
 print_error(rg)
 for threshold in reverse(0.0:0.05:0.7)
   apply_agglomeration!(rg,ag,threshold)
   print_error(rg)
 end
+mst=MST.build_mst(rg,SNEMI3DTestVolume)
+MST.save(mst)
+
 
 
 @test 1 == 1
