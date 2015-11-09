@@ -107,6 +107,7 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 			nbs1=to_default_dict( A[e[1]] )
 			nbs2=to_default_dict( A[e[2]] )
 
+
 			#Delete the edges connecting these two regions
 			delete!(nbs1,e[2])
 			delete!(nbs2,e[1])

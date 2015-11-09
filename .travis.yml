@@ -4,4 +4,11 @@ os:
 julia:
   - 0.4.0
 notifications:
+<<<<<<< HEAD
   email: true
+=======
+  email: true
+
+install:
+ - pip install -r deps/python_requirements.txt
+>>>>>>> 1d555885adbf869856d599882a9d593b91085de6
