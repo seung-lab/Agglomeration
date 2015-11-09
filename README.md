@@ -11,4 +11,3 @@ The Vis module requires PyQtGraph.
 ### Python dependencies
 pyqtgraph
 cython
->>>>>>> e524156... Add travis-ci continuos integration, change project file structure

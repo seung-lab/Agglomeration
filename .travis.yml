@@ -6,5 +6,9 @@ julia:
 notifications:
   email: true
 
-install:
- - pip install -r deps/python_requirements.txt
+before_install:
+ - sudo apt-get install -qq python-numpy python-scipy 
+ - sudo pip install Cython
+ - sudo pip install tifffile
+
+script: ./travis.sh

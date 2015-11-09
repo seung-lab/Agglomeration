@@ -1,5 +1,0 @@
-Cython
-NumPy
-Scipy
-tifffile
-pyqtgraph
