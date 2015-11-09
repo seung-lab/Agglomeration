@@ -4,11 +4,12 @@ using HDF5
 name{vol}(v::Volume{vol})=string(vol)
 
 #change to seungmount/research/Jingpeng/09_pypipeline/omnify/bin
-OMNI_DIR="/usr/people/it2/seungmount/research/Jingpeng/09_pypipeline/omnify/bin"
+#OMNI_DIR="/usr/people/it2/seungmount/research/Jingpeng/09_pypipeline/omnify/bin"
+OMNI_DIR="/home/jonathan/omni"
 
 #for v in [SNEMI3DTestVolume,SNEMI3DTrainVolume]
 
-for v in [SNEMI3DTrainVolume]
+for v in [SNEMI3DTestVolume]
 	# machine_labels=convert(Array{UInt32},v.machine_labels)
 	image=v.image
 	

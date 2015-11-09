@@ -30,13 +30,15 @@ Function[x->max_affinity(x[3])
 oracle=AccumulatingAgglomerator(OracleAgglomerator())
 
 function print_error(rg)
-  rand_index(volume(collect(keys(rg))[1]).human_labels, rg|> Volumes.flatten) |> println
+	ground_truth=convert(Array{UInt},volume(collect(keys(rg))[1]).human_labels)
+	prediction=convert(Array{UInt},rg|> Volumes.flatten)
+	SegmentationMetrics.segerror.seg_fr_variation_information(ground_truth,prediction;merge_error=true,split_error=true)|>println
 end
 
 #initialize an oversegmentation of the SNEMI3D volume
 rg=atomic_region_graph(SNEMI3DTrainVolume)
 print_error(rg)
-#apply the oracle agglomerator with threshold of 0.7
+#apply the oracle agglomerator with a given threshold
 apply_agglomeration!(rg,oracle,0.5)
 print_error(rg)
 
@@ -45,7 +47,7 @@ print_error(rg)
 
 println("$(length(oracle.examples)) training examples")
 
-#include("curriculum.jl")
+#include("../src/curriculum.jl")
 #train the decision tree agglomerator on the set of examples
 train!(decision_ag, oracle.examples ,OracleAgglomerator())
 

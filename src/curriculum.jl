@@ -16,7 +16,7 @@ function experimental_train!(ag,examples,goal; k=5,its=2,pos_threshold=0.8,neg_t
 		end
 		restricted_positive_examples=[]
 		for (key,value) in d
-			print("$(length(value)) ")
+			#print("$(length(value)) ")
 			candidates=sort(value,by=(x->ag(x)),rev=true)
 			for x in take(candidates,k)
 				push!(restricted_positive_examples,x)
