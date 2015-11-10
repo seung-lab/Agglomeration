@@ -6,10 +6,9 @@ it takes path to files necessary to run agglomeration
 module cmd
 using Agglomerator #import paths to other modules
 
-using HDF5Volume
+using Process
 
-using ArgParse , Logging
-Logging.configure(level=DEBUG)
+using ArgParse 
 
 
 
@@ -79,7 +78,7 @@ function parse_agglomerators( agg_name, possible_agglomerators )
 end
 
 function main()
-  possible_agglomerators = ["oracle","decisionTree"]
+  possible_agglomerators = ["LinearAgglomerator","oracle","decisionTree"]
   
   parsed_args = parse_commandline(possible_agglomerators)
 
@@ -90,11 +89,11 @@ function main()
   
   args = Dict("ws"=>ws, "aff"=> aff, "out"=>out, "agg"=>agg)
   if nothing in values(args)
-      return
+      return 
   end
 
-  Logging.debug("All arguments correct")
-  HDF5Volume.forward_pass(args)
+  info("All arguments correct")
+  Process.forward(args)
 
 end
 

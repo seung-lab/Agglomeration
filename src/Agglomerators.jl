@@ -5,12 +5,13 @@ All agglomerator has a array of functions
 and a model that relates this array with and score
 The score is used to decide what to agglomerate
 =#
+
 module Agglomerators
 using Agglomerator #import paths to other modules
 
 
-using Volumes, MST
-using DataStructures, Base.Collections, Iterators, DecisionTree, Volumes
+using DataStructures, Base.Collections, Iterators, DecisionTree
+using Datasets, LabelData
 
 export LinearAgglomerator,
 AccumulatingAgglomerator, 
@@ -68,18 +69,20 @@ end
 type OracleAgglomerator <: Agglomerator
 end
 
-function call{vol}(ag::OracleAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
-	vecdot(normalized_soft_label(x[1]),normalized_soft_label(x[2]))
+typealias region_region_edge{name} Tuple{ LabelData.Region{name}, LabelData.Region{name}, LabelData.Edge{name}}
+
+function call{name}(ag::OracleAgglomerator, x::region_region_edge{name})
+	vecdot(Datasets.normalized_soft_label(x[1]), Datasets.normalized_soft_label(x[2]))
 end
 
-function call{vol}(ag::LinearAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
+function call{name}(ag::LinearAgglomerator,x::Tuple{ LabelData.Region{name}, LabelData.Region{name}, LabelData.Edge{name}})
 	sum([ag.features[i](x)*ag.coefficients[i] for i in 1:length(ag.features)])
 end
-function call{vol}(ag::AccumulatingAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
+function call{name}(ag::AccumulatingAgglomerator,x::region_region_edge{name})
 	push!(ag.examples,x)
 	ag.ag(x)
 end
-function call{vol}(ag::RandomForestAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
+function call{name}(ag::RandomForestAgglomerator,x::region_region_edge{name})
 	apply_forest(ag.model, [f(x) for f in ag.features])
 end
 
@@ -89,7 +92,7 @@ function train!(ag::RandomForestAgglomerator,examples,goal)
 	ag.model=build_forest(labels,features,
 	ag.params[:nfeatures],ag.params[:ntrees],ag.params[:fsample])
 end
-function call{vol}(ag::DecisionTreeAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
+function call{name}(ag::DecisionTreeAgglomerator,x::region_region_edge{name})
 	apply_tree(ag.model, [f(x) for f in ag.features])
 end
 
@@ -108,10 +111,11 @@ end
 #n_svoxels(r::AtomicRegion)=1
 #n_svoxels(r::TreeRegion)=n_svoxels(r.right)+n_svoxels(r.left)
 
-function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, threshold)
+function apply_agglomeration!{name}(A::LabelData.RegionGraph{name},ag::Agglomerator, threshold)
+
 	#println(sum([n_svoxels(x) for x in keys(A)]))
 	edges=chain([[(r1,r2,edge) for (r2,edge) in tails] for (r1,tails) in A]...)
-	pq=PriorityQueue(Tuple{Region{vol},Region{vol},Edge{vol}},Real,Base.Order.Reverse)
+	pq=PriorityQueue(region_region_edge,Real,Base.Order.Reverse)
 	for e in edges
 		tmp=ag(e)
 		if tmp > threshold
@@ -119,7 +123,6 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 		end
 	end
 
-	#mst = MST.newMST()
 	ignore = 0
 	while(!isempty(pq))
 		e, priority = dequeue2!(pq)
@@ -138,14 +141,13 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 			all_nbs=Set(chain(keys(nbs1),keys(nbs2)))
 			#println(length(all_nbs))
 
-			new_region=TreeRegion(e[1],e[2],e[3], priority)
+			new_region= LabelData.TreeRegion(e[1],e[2],e[3], priority)
 
-			#MST.add_edge(mst, new_region, e[3])
 			#Adds new_region key with default value
 			A[new_region]
 
 			for r in all_nbs
-				new_edge=TreeEdge(nbs1[r],nbs2[r])
+				new_edge=LabelData.TreeEdge(nbs1[r],nbs2[r])
 				A[new_region][r]=new_edge
 				A[r][new_region]=new_edge
 
@@ -167,16 +169,15 @@ function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, thresho
 	end
 	println("Merged to $(length(keys(A))) regions")
 	println("Ignored $ignore edges")
-	#MST.save(mst)
 	#println(sum([n_svoxels(x) for x in keys(A)]))
 	return A
 end
 
 
-#converts a Dict{Region{vol},Edge{vol}} into a default dict,
-#if the key is not in the dictionary it returns a default value "()->EmptyEdge{vol}()"
-function to_default_dict{vol}(neighboors::Dict{Region{vol},Edge{vol}})
-	default_dict=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
+#converts a Dict{Region{name},Edge{name}} into a default dict,
+#if the key is not in the dictionary it returns a default value "()->EmptyEdge{name}()"
+function to_default_dict{name}(neighboors::Dict{ LabelData.Region{name}, LabelData.Edge{name}})
+	default_dict=DefaultDict(LabelData.Region{name}, LabelData.Edge{name},()->LabelData.EmptyEdge{name}())
 
 	for r in keys(neighboors)
 		default_dict[r]=neighboors[r]

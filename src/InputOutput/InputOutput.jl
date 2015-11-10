@@ -2,12 +2,8 @@
 Module Save
 =#
 
-module Save
+module InputOutput
 using Agglomerator #import paths to other modules
-
-using  Logging
-Logging.configure(level=DEBUG)
-
 
 export save, load, save_binary, save_znn,load_binary,load_znn
 
@@ -64,10 +60,8 @@ end
 
 function load(file::AbstractString)
 	if !isfile(file)
-    Logging.critical("file path doesn't exist: $file ")
+    error("file path doesn't exist: $file ")
 	end
-
-
 	return deserialize(open(file,"r"))
 end
 function load_binary(prefix::AbstractString)

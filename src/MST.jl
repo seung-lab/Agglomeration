@@ -1,73 +1,48 @@
 module MST
 using Agglomerator #import paths to other modules
 
-using Volumes
 using HDF5
-using SNEMI3D
+using LabelData
 
 
-type _mst{vol}
+type mst_type
 	dend::Array{Array{UInt32,1},1}
 	dendValues::Array{Float32,1}
-	last::Float32
-	volume::Volume{vol}
 end
 
-function newMST{vol}(v::Volume{vol})
-	return _mst(Array{UInt32,1}[], Array{Float32,1}(),0.0f0,v)
-end
-
-function build_mst{vol}(rg::RegionGraph{vol},v::Volume{vol})
-	mst=newMST(v)
+#This only works after an aglomerator has been applied
+function build_mst(rg)
+	
+	mst = mst_type(Array{UInt32,1}[], Array{Float32,1}())
 	for region in keys(rg)
-		recursive_build_mst(mst,region)
+		recursive_build_mst!(mst,region)
 	end
-	mst
+ mst
 end
 
 #returns minimum weight in subtree
-function recursive_build_mst{vol}(mst::_mst, region::TreeRegion{vol})
+function recursive_build_mst!(mst::mst_type, region::LabelData.TreeRegion)
 	edge = find_adjacent_edge(region.edge)
 	if edge == nothing 
 		println("couldn't find adjacent edge")
 	end
-	left=recursive_build_mst(mst,region.left)
-	right=recursive_build_mst(mst,region.right)
+
+	left=recursive_build_mst!(mst,region.left)
+	right=recursive_build_mst!(mst,region.right)
 	weight=min(left,right,region.weight)
 	#we can't use _mst.last since we might process several top
-	#level TreeRegions serially
-
-	edge=find_adjacent_edge(region.edge)
+	#level TreeRegions serially.
 
 	push!(mst.dend, UInt32[UInt32(edge.head.id), UInt32(edge.tail.id)])
 	push!(mst.dendValues, Float32(weight))
 	return weight
 end
-function recursive_build_mst{vol}(mst::_mst, region::AtomicRegion{vol})
+function recursive_build_mst!(mst::mst_type, region::LabelData.AtomicRegion)
 	return 1.0
 end
 
 
-function add_edge{vol}(mst::_mst, region::TreeRegion{vol}, edge::Edge{vol})
-
-	edge = find_adjacent_edge(edge)
-	if edge == nothing 
-		println("couldn't find adjacent edge")
-	end
-
-	if mst.last > region.weight
-		weight = mst.last
-	else
-		weight = region.weight
-		mst.last = weight
-	end
-
-	push!(mst.dend, UInt32[UInt32(edge.head.id), UInt32(edge.tail.id)])
-	push!(mst.dendValues, Float32(region.weight))
-
-end
-
-function find_adjacent_edge{vol}(edge::TreeEdge{vol}) 
+function find_adjacent_edge(edge::LabelData.TreeEdge) 
 	left = find_adjacent_edge(edge.left)
 	if left != nothing
 		return left
@@ -77,52 +52,65 @@ function find_adjacent_edge{vol}(edge::TreeEdge{vol})
 	end
 end
 
-function find_adjacent_edge{vol}(edge::EmptyEdge{vol})
+function find_adjacent_edge(edge::LabelData.EmptyEdge)
 	return nothing
 end
 
-function find_adjacent_edge{vol}(edge::AtomicEdge{vol}) 
+function find_adjacent_edge(edge::LabelData.AtomicEdge) 
 	return edge
 end
 
+function saveBinary(mst::mst_type, filename="mst.data")
+  # (in little endian):
+  # struct Edge {
+  # uint32_t number;    // index starting from 0
+  # uint32_t node1ID;    // ID of the two segments
+  # uint32_t node2ID;    // ID of the two segments
+  # double threshold;
+  # uint8_t userJoin;    // 0
+  # uint8_t userSplit;    // 0
+  # uint8_t wasJoined;  // 0
+  # };
 
-function save(mst::_mst)
-	#= 
-	(in little endian):
+  # check Headless::loadDend() and Headles::ClearMST()
+  
+  f = open(filename,"w")
+  for i in 1:length(mst.dend)
+    write(f,UInt32(i))
+    write(f,UInt32(mst.dend[i][1]))
+    write(f,UInt32(mst.dend[i][2]))
+    write(f,Float64(mst.dendValues[i]))
+    write(f,UInt8(0))
+    write(f,UInt8(0))
+    write(f,UInt8(0))
 
-	struct Edge {
-	uint32_t number;    // index starting from 0
-	uint32_t node1ID;    // ID of the two segments
-	uint32_t node2ID;    // ID of the two segments
-	double threshold;
-	uint8_t userJoin;    // 0
-	uint8_t userSplit;    // 0
-	uint8_t wasJoined;  // 0
-	};
+  end
 
-	check Headless::loadDend() and Headles::ClearMST()
-	=#
-	# f = open("mst.data","w")
-	# for (idx, edge) in enumerate(mst.edges)
-	#   write(f,UInt32(idx))
-	#   write(f,UInt32(edge[1]))
-	#   write(f,UInt32(edge[2]))
-	#   write(f,Float64(edge[3]))
-	#   write(f,UInt8(0))
-	#   write(f,UInt8(0))
-	#   write(f,UInt8(0))
+  println("MST saved")
 
-	# end
-	# close(f)
+end
+
+#Updates or set the MST on an hdf5 file
+function saveHDF5(mst::mst_type, filename="./machine_labels.h5")
+	 
 
 
-	run(`rm -f ./machine_labels.h5`)
+  force_write(filename, "/dend", convert(Array{UInt32,2}, hcat(mst.dend...)') )
+  force_write(filename, "/dendValues", vcat(mst.dendValues)' )
 
-	machine_labels=convert(Array{UInt32},  mst.volume.machine_labels)
+	println("MST saved")
+end
 
-	h5write("./machine_labels.h5","/main",machine_labels)
-	h5write("./machine_labels.h5","/dend", hcat(mst.dend...)')
-	h5write("./machine_labels.h5","/dendValues", vcat(mst.dendValues)')
+function force_write( filename, dataset, array)
+  fid = h5open(filename, "r+")
+
+  if exists(fid, dataset)
+    o_delete(fid, dataset)
+  end 
+  h5write(filename, dataset, array)
+
+  close(fid)
+
 end
 
 
