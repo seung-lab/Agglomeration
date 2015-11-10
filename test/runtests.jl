@@ -3,10 +3,6 @@ using Base.Test
 using MST
 
 # write your own tests here
-<<<<<<< HEAD
-
-=======
->>>>>>> 1d555885adbf869856d599882a9d593b91085de6
 using SNEMI3D, Agglomerators, Features, Volumes, SegmentationMetrics, Vis
 
 #Define a decision tree agglomerator and a linear classifier
