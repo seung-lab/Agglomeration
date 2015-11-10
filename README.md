@@ -1,13 +1,10 @@
 # Agglomerator
-![travis-ci.com](https://magnum.travis-ci.com/seung-lab/agglomerator.svg?token=XgJykxTsTUBYXsq64oSK)
-
+[![Build Status](https://magnum.travis-ci.com/seung-lab/Agglomerator.svg?token=XgJykxTsTUBYXsq64oSK&branch=master)](https://magnum.travis-ci.com/seung-lab/Agglomerator)
 
 To install run:
+```
 Pkg.clone("git@github.com:seung-lab/Agglomerator.git")
+```
 
-To use the SNEMI3D module, get the SNEMI3D dataset from ~/seungmount/research/Jonathan/SNEMI3D and modify the load path in SNEMI3D.jl
 The Vis module requires PyQtGraph.
 
-### Python dependencies
-pyqtgraph
-cython
