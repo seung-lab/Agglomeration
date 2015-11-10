@@ -4,11 +4,11 @@ os:
 julia:
   - 0.4.0
 notifications:
-<<<<<<< HEAD
-  email: true
-=======
   email: true
 
-install:
- - pip install -r deps/python_requirements.txt
->>>>>>> 1d555885adbf869856d599882a9d593b91085de6
+before_install:
+ - sudo apt-get install -qq python-numpy python-scipy 
+ - sudo pip install Cython
+ - sudo pip install tifffile
+
+script: ./travis.sh
