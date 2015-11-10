@@ -15,6 +15,7 @@ using DataStructures, Base.Collections, Iterators, DecisionTree, Volumes
 export LinearAgglomerator,
 AccumulatingAgglomerator, 
 DecisionTreeAgglomerator, 
+RandomForestAgglomerator,
 OracleAgglomerator
 export atomic_region_graph, apply_agglomeration!
 export train!
@@ -41,9 +42,20 @@ end
 type DecisionTreeAgglomerator <: Agglomerator
 	features::Array{Function,1}
 	model
-	function DecisionTreeAgglomerator(features)
-		new(features,nothing)
-	end
+	params
+end
+function DecisionTreeAgglomerator(features;leaf_size=20)
+	DecisionTreeAgglomerator(features,nothing,Dict(:leaf_size=>leaf_size))
+end
+
+type RandomForestAgglomerator <: Agglomerator
+	features::Array{Function,1}
+	model
+	params
+end
+function RandomForestAgglomerator(features;nfeatures=2,ntrees=10,fsample=0.5)
+	RandomForestAgglomerator(features,nothing,Dict(:nfeatures=>nfeatures,:ntrees=>ntrees,
+	:fsample=>fsample))
 end
 
 type AccumulatingAgglomerator <: Agglomerator
@@ -67,14 +79,24 @@ function call{vol}(ag::AccumulatingAgglomerator,x::Tuple{Region{vol},Region{vol}
 	push!(ag.examples,x)
 	ag.ag(x)
 end
-function call{vol}(ag::DecisionTreeAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
+function call{vol}(ag::RandomForestAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
 	apply_forest(ag.model, [f(x) for f in ag.features])
+end
+
+function train!(ag::RandomForestAgglomerator,examples,goal)
+	features=Float64[f(e) for e in examples, f in ag.features]
+	labels=map(goal,examples)::Array{Float64,1}
+	ag.model=build_forest(labels,features,
+	ag.params[:nfeatures],ag.params[:ntrees],ag.params[:fsample])
+end
+function call{vol}(ag::DecisionTreeAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
+	apply_tree(ag.model, [f(x) for f in ag.features])
 end
 
 function train!(ag::DecisionTreeAgglomerator,examples,goal)
 	features=Float64[f(e) for e in examples, f in ag.features]
 	labels=map(goal,examples)::Array{Float64,1}
-	ag.model=build_forest(labels,features,2,5,0.5)
+	ag.model=build_tree(labels,features,ag.params[:leaf_size])
 end
 function train!(ag::AccumulatingAgglomerator,examples,goal)
 	train!(ag.ag,examples,goal)
@@ -154,14 +176,11 @@ end
 #converts a Dict{Region{vol},Edge{vol}} into a default dict,
 #if the key is not in the dictionary it returns a default value "()->EmptyEdge{vol}()"
 function to_default_dict{vol}(neighboors::Dict{Region{vol},Edge{vol}})
-
-
 	default_dict=DefaultDict(Region{vol},Edge{vol},()->EmptyEdge{vol}())
 
 	for r in keys(neighboors)
 		default_dict[r]=neighboors[r]
 	end
-
 
 	# #Also remove them from the Priority Queue
 	# if haskey(pq, (e[1],r,orignbs1[r])) 
