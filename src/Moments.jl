@@ -14,7 +14,7 @@ immutable Expansion
 	data::Tuple
 end
 function ⊗{T,n,m}(A::Array{T,n},B::Array{T,m})
-	reshape([x*y for x in A, y in B],tuple(size(A)...,size(B)...))
+	reshape(T[x*y for x in A, y in B],tuple(size(A)...,size(B)...))
 end
 	
 function Base.(:*)(x::Expansion,y::Expansion)
