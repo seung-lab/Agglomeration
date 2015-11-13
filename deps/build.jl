@@ -1,5 +1,4 @@
 run(`git submodule update --init`)
-run(`cython -V`)
 seg= abspath(string( dirname(@__FILE__) ,"/../deps/seg-error/"))
 run(`make -C $seg`)
 

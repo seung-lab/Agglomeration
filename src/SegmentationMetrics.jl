@@ -1,3 +1,4 @@
+__precompile__(false)
 module SegmentationMetrics
 using Agglomerator #import paths to other modules
 
@@ -33,9 +34,9 @@ function rand_index(A::Array,B::Array)
 	total_B=sum(sum(reduced_incidence_matrix,1).^2)+nsingletons
 	(:recall=> both/total_A,:precision=>both/total_B)
 end
-#=
-x=rand(1:100,(30,30))
-y=rand(1:100,(30,30))
-println(nick_index(x,y,merge_err=true,split_err=true))
-=#
+
+# x=rand(1:100,(30,30))
+# y=rand(1:100,(30,30))
+# println(nick_index(x,y,merge_err=true,split_err=true))
+
 end
