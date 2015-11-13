@@ -67,11 +67,14 @@ end
 end
 function centred_moments(r::Region,n)
 	moments=map(x->x./x[1],[unnormalized_moments((r,i)) for i in 1:n])
-	centred_moments=[moments[1],[moments[i]-moments[1]⊗moments[i-1]]...]
+	centred_moments=Any[moments[1],[moments[i]-moments[1]⊗moments[i-1] for i in 2:n]...]
 	#For higher moments, should be symmetrized
 	#We can also try different centering schemes, maybe max-entropy centering?
 	return centred_moments
 end
-
-
+function spectral_ratio(r::Region)
+	M=centred_moments(r,2)[2][2:4,2:4]
+	e=eigvals(M)
+	return e[1]/e[2]
+end
 end

@@ -1,6 +1,7 @@
 using SNEMI3D
 using Volumes
 using HDF5
+import Save
 name{vol}(v::Volume{vol})=string(vol)
 
 #change to seungmount/research/Jingpeng/09_pypipeline/omnify/bin
@@ -11,7 +12,7 @@ OMNI_DIR="/home/jonathan/omni"
 
 for v in [SNEMI3DTestVolume]
 	# machine_labels=convert(Array{UInt32},v.machine_labels)
-	image=v.image
+	image=Save.load("image.jls")
 	
 	# dend[1]=1
 	# dend[2]=2
@@ -24,20 +25,21 @@ for v in [SNEMI3DTestVolume]
 	#println(size(machine_labels))
 	#println(size(dend))
 	#println(size(dendValues))
-	dirname="$(name(v))Omni"
-	run(`mkdir -p $(dirname)`)
+	outputdir="$(name(v))Omni"
+	run(`mkdir -p $(outputdir)`)
 
-	run(`rm -f $(dirname)/machine_labels.h5`)
-	run(`rm -f $(dirname)/image.h5`)
+	run(`rm -f $(outputdir)/machine_labels.h5`)
+	run(`rm -f $(outputdir)/image.h5`)
 
-	h5write("$(dirname)/machine_labels.h5","/main",machine_labels)
-	h5write("$(dirname)/machine_labels.h5","/dend",dend)
+	run(`cp machine_labels.h5 $(outputdir)/machine_labels.h5`)
+	#h5write("$(outputdir)/machine_labels.h5","/main",machine_labels)
+	#h5write("$(outputdir)/machine_labels.h5","/dend",dend)
 	#h5write("machine_labels.h5","/dendValues",dendValues)
-	h5write("$(dirname)/image.h5","/main",image)
-	run(`cat omnify.cmd`)
-	run(`echo "create:$(name(v)).omni"` |> `cat - omnify.cmd` |> "$(dirname)/omnify$(name(v)).cmd")
+	h5write("$(outputdir)/image.h5","/main",image)
+	run(`cat $(dirname(@__FILE__))/omnify.cmd`)
+	run(`echo "create:$(name(v)).omni"` |> `cat - $(dirname(@__FILE__))/omnify.cmd` |> "$(outputdir)/omnify$(name(v)).cmd")
 	base_dir=pwd()
-	cd(dirname)
+	cd(outputdir)
 	run(`$(OMNI_DIR)/omni.omnify --headless --cmdfile=omnify$(name(v)).cmd`)
 	cd(base_dir)
 end

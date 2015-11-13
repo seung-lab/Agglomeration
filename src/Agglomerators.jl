@@ -10,7 +10,7 @@ using Agglomerator #import paths to other modules
 
 
 using Volumes, MST
-using DataStructures, Base.Collections, Iterators, DecisionTree, Volumes
+using DataStructures, Base.Collections, Iterators, MyDecisionTree, Volumes
 
 export LinearAgglomerator,
 AccumulatingAgglomerator, 
@@ -44,8 +44,8 @@ type DecisionTreeAgglomerator <: Agglomerator
 	model
 	params
 end
-function DecisionTreeAgglomerator(features;leaf_size=20)
-	DecisionTreeAgglomerator(features,nothing,Dict(:leaf_size=>leaf_size))
+function DecisionTreeAgglomerator(features;info_threshold=0.2)
+	DecisionTreeAgglomerator(features,nothing,Dict(:info_threshold=>info_threshold))
 end
 
 type RandomForestAgglomerator <: Agglomerator
@@ -53,9 +53,9 @@ type RandomForestAgglomerator <: Agglomerator
 	model
 	params
 end
-function RandomForestAgglomerator(features;nfeatures=2,ntrees=10,fsample=0.5)
+function RandomForestAgglomerator(features;nfeatures=3,ntrees=10,fsample=0.6,info_threshold=50)
 	RandomForestAgglomerator(features,nothing,Dict(:nfeatures=>nfeatures,:ntrees=>ntrees,
-	:fsample=>fsample))
+	:fsample=>fsample,:info_threshold=>info_threshold))
 end
 
 type AccumulatingAgglomerator <: Agglomerator
@@ -86,8 +86,10 @@ end
 function train!(ag::RandomForestAgglomerator,examples,goal)
 	features=Float64[f(e) for e in examples, f in ag.features]
 	labels=map(goal,examples)::Array{Float64,1}
-	ag.model=build_forest(labels,features,
-	ag.params[:nfeatures],ag.params[:ntrees],ag.params[:fsample])
+	ag.model=build_forest(labels,features;
+	nsubfeatures=ag.params[:nfeatures],
+	ntrees=ag.params[:ntrees],
+	partialsampling=ag.params[:fsample])
 end
 function call{vol}(ag::DecisionTreeAgglomerator,x::Tuple{Region{vol},Region{vol},Edge{vol}})
 	apply_tree(ag.model, [f(x) for f in ag.features])
@@ -96,7 +98,8 @@ end
 function train!(ag::DecisionTreeAgglomerator,examples,goal)
 	features=Float64[f(e) for e in examples, f in ag.features]
 	labels=map(goal,examples)::Array{Float64,1}
-	ag.model=build_tree(labels,features,ag.params[:leaf_size])
+	ag.model=build_tree(labels,features; info_threshold=ag.params[:info_threshold])
+	print_tree(ag.model)
 end
 function train!(ag::AccumulatingAgglomerator,examples,goal)
 	train!(ag.ag,examples,goal)
@@ -107,7 +110,11 @@ end
 
 #n_svoxels(r::AtomicRegion)=1
 #n_svoxels(r::TreeRegion)=n_svoxels(r.right)+n_svoxels(r.left)
-
+type AgglomerationState
+	rg::RegionGraph
+	pq::PriorityQueue
+	live_edges::Set{Edge}
+end
 function apply_agglomeration!{vol}(A::RegionGraph{vol},ag::Agglomerator, threshold)
 	#println(sum([n_svoxels(x) for x in keys(A)]))
 	edges=chain([[(r1,r2,edge) for (r2,edge) in tails] for (r1,tails) in A]...)
