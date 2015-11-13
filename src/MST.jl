@@ -76,14 +76,16 @@ function saveBinary(mst::mst_type, filename="mst.data")
   
   f = open(filename,"w")
   for i in 1:length(mst.dend)
-    write(f,UInt32(i))
+    write(f,UInt32(rand(UInt32)))
     write(f,UInt32(mst.dend[i][1]))
     write(f,UInt32(mst.dend[i][2]))
+    write(f,UInt32(0)) #64 padding
     write(f,Float64(mst.dendValues[i]))
-    write(f,UInt32(0))
-    write(f,UInt32(0))
-    write(f,UInt32(0))
-
+    write(f,UInt8(0))
+    write(f,UInt8(0))
+    write(f,UInt8(0))
+    write(f,UInt8(0))  #64 padding
+    write(f,UInt32(0)) #64 padding
   end
 
   println("MST saved")
@@ -107,7 +109,7 @@ function force_write( filename, dataset, array)
   if exists(fid, dataset)
     o_delete(fid, dataset)
   end 
-  h5write(filename, dataset, array)
+  write(fid, dataset, array)
 
   close(fid)
 

@@ -45,7 +45,7 @@ end
 function parse_watershed( ws_path )
 
   if !ispath(ws_path)
-    Logging.critical("file path doesn't exist for watershed: $ws_path ")
+    error("file path doesn't exist for watershed: $ws_path ")
     return nothing
   end 
   return realpath( ws_path )
@@ -53,7 +53,7 @@ end
 
 function parse_affinities( aff_path )
   if !ispath(aff_path)
-    Logging.critical("file path doesn't exist for affinities: $aff_path ")
+    error("file path doesn't exist for affinities: $aff_path ")
     return nothing
   end 
   return realpath( aff_path )
@@ -62,7 +62,7 @@ end
 function parse_output( out_path )
 
   if ispath(out_path)
-    Logging.warn("file path does exist for output: $out_path, file will be overwritten ")
+    info("file path does exist for output: $out_path, file will be overwritten ")
   end 
   return abspath( out_path )
 end
@@ -73,7 +73,7 @@ function parse_agglomerators( agg_name, possible_agglomerators )
     return agg_name
   end
 
-  Logging.critical("$agg_name is no a valid agglomerator type")
+  error("$agg_name is no a valid agglomerator type")
   return nothing
 end
 

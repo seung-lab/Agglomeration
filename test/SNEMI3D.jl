@@ -8,7 +8,7 @@ is this training and test data?
 
 The images are 1000x1000x100 and there are about 400 labelled segments
 =# 
-# __precompile__()
+__precompile__()
 module SNEMI3D
 using Agglomerator #import paths to other modules
 using Datasets

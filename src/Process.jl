@@ -1,5 +1,6 @@
 module Process
-using Datasets, Agglomerators, LabelData, Features
+using Datasets, Agglomerators, LabelData, Features, MST
+
 
 function forward(cmd_args)
 
@@ -11,6 +12,12 @@ function forward(cmd_args)
 
   agg = build_agglomerator(cmd_args["agg"])
   apply_agglomeration!(rg,agg, 0.7)
+
+  mst= MST.build_mst(rg)
+
+  MST.saveHDF5(mst, cmd_args["out"])
+  omni_mst = abspath(string( dirname(@__FILE__) ,"/../omni/empty2.omni.files/users/_default/segmentations/segmentation1/segments/mst.data"))
+  MST.saveBinary(mst, omni_mst)
 end
 
 function build_agglomerator(agg_name)
