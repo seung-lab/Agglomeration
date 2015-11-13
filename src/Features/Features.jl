@@ -60,5 +60,27 @@ end
 function mean_affinity(x::LabelData.Edge)
 	sum_affinity(x)/(contact_area(x)+0.01)
 end
+@memoize function unnormalized_moments(x::Tuple{AtomicRegion,Int})
+	r=x[1]
+	n=x[2]
+	sum([Moments.opow(Float64[1.0,v...],n) for v in r.voxels])
+end
+@memoize function unnormalized_moments(x::Tuple{TreeRegion,Int})
+	r=x[1]
+	n=x[2]
+	unnormalized_moments((r.left,n))+unnormalized_moments((r.right,n))
+end
+function centred_moments(r::Region,n)
+	moments=map(x->x./x[1],[unnormalized_moments((r,i)) for i in 1:n])
+	centred_moments=Any[moments[1],[moments[i]-moments[1]⊗moments[i-1] for i in 2:n]...]
+	#For higher moments, should be symmetrized
+	#We can also try different centering schemes, maybe max-entropy centering?
+	return centred_moments
+end
+function spectral_ratio(r::Region)
+	M=centred_moments(r,2)[2][2:4,2:4]
+	e=eigvals(M)
+	return e[1]/e[2]
+end
 
 end
