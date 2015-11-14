@@ -1,5 +1,4 @@
-
-__precompile__(false)
+__precompile__()
 module Datasets
 
 using Agglomerator #import paths to other modules
@@ -232,16 +231,14 @@ function flatten{name}(rg::LabelData.RegionGraph{name})
   return A
 end
 
-function print_error{name}(rg::LabelData.RegionGraph{name})
+function compute_error{name}(rg::LabelData.RegionGraph{name})
   
   d = get_dataset(rg)
 
   ground_truth=convert(Array{UInt}, d.human_labels)
   prediction=convert(Array{UInt}, rg|> flatten)
   
-  #FIXME
-  # SegmentationMetrics.segerror.seg_fr_variation_information(ground_truth,prediction;merge_error=true,split_error=true)|>println
-  SegmentationMetrics.nick_index(ground_truth,prediction)|>println
+  nick_index(ground_truth,prediction,merge_error=true, split_error=true)
 
 end
 

@@ -1,17 +1,19 @@
-__precompile__(false)
+__precompile__()
 module SegmentationMetrics
 using Agglomerator #import paths to other modules
 
 export rand_index,nick_index
 using PyCall
 
-unshift!(PyVector(pyimport("sys")["path"]),"$(Base.source_dir())/../deps/seg-error")
-@pyimport error as segerror
+function __init__()
+	unshift!(PyVector(pyimport("sys")["path"]),"$(dirname(@__FILE__))/../deps/seg-error")
+	global segerror=pyimport("error")
+end
 
 function nick_index(A::Array,B::Array;kwargs...)
 	a=convert(Array{UInt},A)
 	b=convert(Array{UInt},B)
-	segerror.seg_rand_error(a,b;kwargs...)
+	segerror["seg_fr_variation_information"](a,b;kwargs...)
 end
 
 function rand_index(A::Array,B::Array)

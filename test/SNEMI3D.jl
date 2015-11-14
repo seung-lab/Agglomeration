@@ -28,9 +28,7 @@ function __init__()
                                       "$FOLDER_TEST/affinities.jls", 
                                       "$FOLDER_TEST/machine_labels.jls",
                                       "$FOLDER_TEST/human_labels.jls")
-  return Train, Test
 end 
 
-Train , Test = nothing, nothing
 
 end #module

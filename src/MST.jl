@@ -1,3 +1,4 @@
+__precompile__()
 module MST
 using Agglomerator #import paths to other modules
 

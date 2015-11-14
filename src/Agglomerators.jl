@@ -5,12 +5,12 @@ All agglomerator has a array of functions
 and a model that relates this array with and score
 The score is used to decide what to agglomerate
 =#
-
+__precompile__()
 module Agglomerators
 using Agglomerator #import paths to other modules
 
 
-using DataStructures, Base.Collections, Iterators, DecisionTree
+using DataStructures, Base.Collections, Iterators, MyDecisionTree
 using Datasets, LabelData
 
 export LinearAgglomerator,
@@ -45,8 +45,8 @@ type DecisionTreeAgglomerator <: Agglomerator
 	model
 	params
 end
-function DecisionTreeAgglomerator(features;leaf_size=20)
-	DecisionTreeAgglomerator(features,nothing,Dict(:leaf_size=>leaf_size))
+function DecisionTreeAgglomerator(features;info_threshold=0.2)
+	DecisionTreeAgglomerator(features,nothing,Dict(:info_threshold=>info_threshold))
 end
 
 type RandomForestAgglomerator <: Agglomerator
@@ -54,9 +54,9 @@ type RandomForestAgglomerator <: Agglomerator
 	model
 	params
 end
-function RandomForestAgglomerator(features;nfeatures=2,ntrees=10,fsample=0.5)
+function RandomForestAgglomerator(features;nfeatures=3,ntrees=10,fsample=0.6,info_threshold=50)
 	RandomForestAgglomerator(features,nothing,Dict(:nfeatures=>nfeatures,:ntrees=>ntrees,
-	:fsample=>fsample))
+	:fsample=>fsample,:info_threshold=>info_threshold))
 end
 
 type AccumulatingAgglomerator <: Agglomerator
@@ -89,8 +89,10 @@ end
 function train!(ag::RandomForestAgglomerator,examples,goal)
 	features=Float64[f(e) for e in examples, f in ag.features]
 	labels=map(goal,examples)::Array{Float64,1}
-	ag.model=build_forest(labels,features,
-	ag.params[:nfeatures],ag.params[:ntrees],ag.params[:fsample])
+	ag.model=build_forest(labels,features;
+	nsubfeatures=ag.params[:nfeatures],
+	ntrees=ag.params[:ntrees],
+	partialsampling=ag.params[:fsample])
 end
 function call{name}(ag::DecisionTreeAgglomerator,x::region_region_edge{name})
 	apply_tree(ag.model, [f(x) for f in ag.features])
@@ -99,7 +101,8 @@ end
 function train!(ag::DecisionTreeAgglomerator,examples,goal)
 	features=Float64[f(e) for e in examples, f in ag.features]
 	labels=map(goal,examples)::Array{Float64,1}
-	ag.model=build_tree(labels,features,ag.params[:leaf_size])
+	ag.model=build_tree(labels,features; info_threshold=ag.params[:info_threshold])
+	print_tree(ag.model)
 end
 function train!(ag::AccumulatingAgglomerator,examples,goal)
 	train!(ag.ag,examples,goal)

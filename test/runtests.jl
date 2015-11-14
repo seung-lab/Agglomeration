@@ -22,11 +22,11 @@ oracle=AccumulatingAgglomerator(OracleAgglomerator())
 
 #initialize an oversegmentation of the SNEMI3D volume
 rg= LabelData.atomic_region_graph(SNEMI3D.Train.edges, :SNEMI3DTrain)
-Datasets.print_error(rg)
+Datasets.compute_error(rg)|>println
 
 # #apply the oracle agglomerator with a given threshold
 apply_agglomeration!(rg,oracle,0.5)
-Datasets.print_error(rg)
+Datasets.compute_error(rg)|>println
 
 mst= MST.build_mst(rg)
 MST.saveBinary(mst)

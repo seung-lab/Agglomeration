@@ -3,7 +3,7 @@ This package add the src directory to the LOAD_PATH
 so other modules can be correctly import or use
 
 =#
-
+__precompile__()
 module Agglomerator
 
  
@@ -13,7 +13,6 @@ function __init__()
   add_path("/Agglomerator/src/Features")
   add_path("/Agglomerator/src/Visualization")
   add_path("/Agglomerator/test")
-
 end
 
 

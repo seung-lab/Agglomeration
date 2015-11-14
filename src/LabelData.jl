@@ -1,4 +1,4 @@
-
+__precompile__()
 module LabelData
 
 using FixedSizeArrays, DataStructures, Memoize
