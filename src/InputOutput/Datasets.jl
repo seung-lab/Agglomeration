@@ -231,14 +231,14 @@ function flatten{name}(rg::LabelData.RegionGraph{name})
   return A
 end
 
-function print_error{name}(rg::LabelData.RegionGraph{name})
+function compute_error{name}(rg::LabelData.RegionGraph{name})
   
   d = get_dataset(rg)
 
   ground_truth=convert(Array{UInt}, d.human_labels)
   prediction=convert(Array{UInt}, rg|> flatten)
   
-  nick_index(ground_truth,prediction,merge_error=true, split_error=true)|>println
+  nick_index(ground_truth,prediction,merge_error=true, split_error=true)
 
 end
 
