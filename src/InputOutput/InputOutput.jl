@@ -1,7 +1,7 @@
 #=
 Module Save
 =#
-
+__precompile__()
 module InputOutput
 using Agglomerator #import paths to other modules
 

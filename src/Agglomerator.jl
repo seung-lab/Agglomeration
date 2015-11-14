@@ -3,7 +3,7 @@ This package add the src directory to the LOAD_PATH
 so other modules can be correctly import or use
 
 =#
-
+__precompile__()
 module Agglomerator
 
  
