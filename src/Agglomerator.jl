@@ -13,7 +13,6 @@ function __init__()
   add_path("/Agglomerator/src/Features")
   add_path("/Agglomerator/src/Visualization")
   add_path("/Agglomerator/test")
-
 end
 
 
