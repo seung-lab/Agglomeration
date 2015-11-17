@@ -3,8 +3,8 @@ DataStructures
 Iterators
 Memoize
 FixedSizeArrays
-DecisionTree
-Logging
 PyCall
 ArgParse
 HDF5
+DataFrames
+Gadfly
