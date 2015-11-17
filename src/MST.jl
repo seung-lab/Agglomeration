@@ -2,7 +2,7 @@ __precompile__()
 module MST
 using Agglomerator #import paths to other modules
 
-using HDF5
+using HDF5, DataStructures
 using LabelData
 
 
@@ -14,31 +14,77 @@ end
 #This only works after an aglomerator has been applied
 function build_mst(rg)
 	
-	mst = mst_type(Array{UInt32,1}[], Array{Float32,1}())
-	for region in keys(rg)
-		recursive_build_mst!(mst,region)
-	end
- mst
+  mst = mst_type(Array{UInt32,1}[], Array{Float32,1}())
+  for region in keys(rg)
+
+    region_graph = DefaultDict(Int , Dict{Int , Real},
+                   ()->Dict{Int , Real}())
+    recursive_build_graph!(region_graph,region)
+    if length(region_graph) == 0
+      continue
+    end
+    
+    subtree = mst_type(Array{UInt32,1}[], Array{Float32,1}())
+    graph_to_tree(subtree, region_graph)
+
+    push!(mst.dend, subtree.dend...)
+    push!(mst.dendValues, subtree.dendValues...)
+
+  end
+
+  return mst
 end
 
+function graph_to_tree(tree, 
+                       region_graph::DataStructures.DefaultDict{Int64,Dict{Int64,Real},Function}) 
+  
+
+  #BFS
+  visited = Set()
+  root = first(keys(region_graph))
+
+  queue = Queue(Int)
+  enqueue!(queue, root)
+
+  while length(queue) > 0
+    
+    root =  dequeue!(queue)
+    if root in visited
+      continue
+    end
+
+    push!(visited,root)
+    for (neighboor, weight) in region_graph[root]    
+
+      if !(neighboor in visited)
+        push!(tree.dend, UInt32[UInt32(root), UInt32(neighboor)])
+        push!(tree.dendValues, Float32(weight))
+        enqueue!(queue, neighboor)
+      end
+    end
+  end
+
+
+end
+
+
 #returns minimum weight in subtree
-function recursive_build_mst!(mst::mst_type, region::LabelData.TreeRegion)
+function recursive_build_graph!(region_graph, region::LabelData.TreeRegion)
 	edge = find_adjacent_edge(region.edge)
 	if edge == nothing 
 		println("couldn't find adjacent edge")
 	end
 
-	left=recursive_build_mst!(mst,region.left)
-	right=recursive_build_mst!(mst,region.right)
-	weight=min(left,right,region.weight)
-	#we can't use _mst.last since we might process several top
-	#level TreeRegions serially.
+	left=recursive_build_graph!(region_graph,region.left)
+	right=recursive_build_graph!(region_graph,region.right)
 
-	push!(mst.dend, UInt32[UInt32(edge.head.id), UInt32(edge.tail.id)])
-	push!(mst.dendValues, Float32(weight))
+	weight=min(left,right,region.weight)
+
+  region_graph[edge.head.id][edge.tail.id] = weight
+  region_graph[edge.tail.id][edge.head.id] = weight
 	return weight
 end
-function recursive_build_mst!(mst::mst_type, region::LabelData.AtomicRegion)
+function recursive_build_graph!(region_graph, region::LabelData.AtomicRegion)
 	return 1.0
 end
 
@@ -105,8 +151,12 @@ function saveHDF5(mst::mst_type, filename="./machine_labels.h5")
 end
 
 function force_write( filename, dataset, array)
-  fid = h5open(filename, "r+")
-
+  fid = nothing
+  try
+    fid = h5open(filename, "r+")
+  catch
+    fid = h5open(filename, "w")
+  end
   if exists(fid, dataset)
     o_delete(fid, dataset)
   end 
