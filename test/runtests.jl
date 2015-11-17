@@ -28,28 +28,28 @@ Datasets.compute_error(rg)|>println
 apply_agglomeration!(rg,oracle,0.5)
 Datasets.compute_error(rg)|>println
 
-mst= MST.build_mst(rg)
-MST.saveBinary(mst)
 
 # #oracle.examples now contains all examples that the oracle
 # #saw during agglomeration.
 
-# println("$(length(oracle.examples)) training examples")
+println("$(length(oracle.examples)) training examples")
 
-# include("../src/curriculum.jl")
-# #train the decision tree agglomerator on the set of examples
-# train!(decision_ag, oracle.examples ,OracleAgglomerator())
+include("../src/curriculum.jl")
+#train the decision tree agglomerator on the set of examples
+train!(decision_ag, oracle.examples ,OracleAgglomerator())
 
 
-# #Run the decision tree agglomerator on a new volume.
-# ag=decision_ag
-# rg=LabelData.atomic_region_graph(SNEMI3D.Test.edges, :SNEMI3DTest)
-# println(length(keys(rg)))
-# Datasets.print_error(rg)
+#Run the decision tree agglomerator on a new volume.
+ag=decision_ag
+rg=LabelData.atomic_region_graph(SNEMI3D.Test.edges, :SNEMI3DTest)
+println(length(keys(rg)))
+Datasets.compute_error(rg)|>println
 # for threshold in reverse(0.0:0.05:0.7)
 #   apply_agglomeration!(rg,ag,threshold)
-#   Datasets.print_error(rg)
+#   Datasets.compute_error(rg)|>println
 # end
-# mst=MST.build_mst(rg,SNEMI3D.Test)
-# MST.save(mst)
+apply_agglomeration!(rg,ag,0.5)
+Datasets.compute_error(rg)|>println
+mst=MST.build_mst(rg)
+MST.saveHDF5(mst)
 
