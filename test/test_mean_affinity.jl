@@ -1,3 +1,5 @@
+using Agglomerator
+
 using TestUtils
 using Agglomerators,Features
 
