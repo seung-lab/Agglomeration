@@ -13,7 +13,7 @@ function run_test(ag,name)
 	rg=LabelData.atomic_region_graph(SNEMI3D.Test.edges,:SNEMI3DTest)
 	#apply the oracle agglomerator with a given threshold
 	sm=[]
-	for threshold in reverse(0.0:0.01:1.0)
+	for threshold in reverse(0.0:0.5:1.0)
 		apply_agglomeration!(rg,ag,threshold)
 		push!(sm,Datasets.compute_error(rg))
 		if length(keys(rg))<=2
@@ -21,18 +21,18 @@ function run_test(ag,name)
 		end
 	end
 	
-  from = "$(dirname(@__FILE__))/../deps/datasets/ds_test/omni/Empty.omni.files"
-  to = abspath("$(dirname(@__FILE__))/../deps/datasets/ds_test/omni/$(name).omni.files")
+  from = "$(dirname(@__FILE__))/../deps/datasets/us_test/omni/Empty.omni.files"
+  to = abspath("$(dirname(@__FILE__))/../deps/datasets/us_test/omni/$(name).omni.files")
 	
 	println("Created new project in $to")
 	cp(from,to; remove_destination=true)
 	
-  from = "$(dirname(@__FILE__))/../deps/datasets/ds_test/omni/Empty.omni"
-  to = "$(dirname(@__FILE__))/../deps/datasets/ds_test/omni/$(name).omni"
+  from = "$(dirname(@__FILE__))/../deps/datasets/us_test/omni/Empty.omni"
+  to = "$(dirname(@__FILE__))/../deps/datasets/us_test/omni/$(name).omni"
 	cp(from,to; remove_destination=true)
 	
 	mst=MST.build_mst(rg)
-	mst_path = "$(dirname(@__FILE__))/../deps/datasets/ds_test/omni/$(name).omni.files/users/_default/segmentations/segmentation1/segments/mst.data"
+	mst_path = "$(dirname(@__FILE__))/../deps/datasets/us_test/omni/$(name).omni.files/users/_default/segmentations/segmentation1/segments/mst.data"
 	MST.saveBinary(mst,mst_path)
 
 	save_error(sm,name)
