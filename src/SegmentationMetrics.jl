@@ -10,10 +10,10 @@ function __init__()
 	global segerror=pyimport("error")
 end
 
-function nick_index(A::Array,B::Array;kwargs...)
-	a=convert(Array{UInt},A)
-	b=convert(Array{UInt},B)
-	segerror["seg_fr_variation_information"](a,b;kwargs...)
+function nick_index{T<:Unsigned}(A::Array{T},B::Array{T};kwargs...)
+	#a=convert(Array{UInt},A)
+	#b=convert(Array{UInt},B)
+	segerror["seg_fr_variation_information"](A,B;kwargs...)
 end
 
 function rand_index(A::Array,B::Array)

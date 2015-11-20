@@ -3,19 +3,21 @@ module LabelData
 
 using FixedSizeArrays, DataStructures, Memoize
 
-typealias Labels Array{Int, 3}
+typealias Label UInt32
+typealias Labels Array{Label, 3}
+typealias Index UInt32
 
 #################  Regions #################
 abstract Region{name}
 abstract Edge{name}
 
 type AtomicRegion{name} <: Region{name}
-  voxels::Array{Vec{3,Int},1}
+  voxels::Array{Vec{3,Index},1}
   neighbours::ObjectIdDict
   id::Int
 end
-function AtomicRegion(id::Int, name)
-  return AtomicRegion{name}(Vec{3,Int}[],ObjectIdDict(),id)
+function AtomicRegion(id::Label, name)
+  return AtomicRegion{name}(Vec{3,Index}[],ObjectIdDict(),id)
 end
 type AggregateRegion{name} <: Region{name}
   regions::Set{AtomicRegion{name}}
@@ -42,10 +44,10 @@ end
 
 function compute_regions(labels::Labels, n_labels, name)
 
-  ret=[AtomicRegion(id, name) for id in 1:n_labels]
+  ret=[AtomicRegion(Label(id), name) for id in 1:n_labels]
   for i in CartesianRange(size(labels))
     if labels[i]!=0
-      push!(ret[labels[i]].voxels,Vec{3,Int}(i.I...))
+      push!(ret[labels[i]].voxels,Vec{3,Index}(i.I...))
     end
   end
   
@@ -67,7 +69,7 @@ end
 type AtomicEdge{name} <: Edge{name}
   head::AtomicRegion{name}
   tail::AtomicRegion{name}
-  edges::Array{Vec{4,Int},1}
+  edges::Array{Vec{4,Index},1}
 end
 type TreeEdge{name} <: Edge{name}
   left::Edge{name}
@@ -86,7 +88,7 @@ function compute_edges(labels::Labels, regions, name)
   #This dict contains as a key both voxels ids
   #and as a value the position of the voxel being iterated and the direction on where to
   #find the second voxels. Or in other words the position of both voxels. 
-  L=DefaultDict(UnorderedPair{Int},Array{Vec{4,Int},1},()->Vec{4,Int}[])
+  L=DefaultDict(UnorderedPair{Label},Array{Vec{4,Index},1},()->Vec{4,Index}[])
 
   for k in 2:size(labels,3)
     for j in 2:size(labels,2)
@@ -102,13 +104,13 @@ function compute_edges(labels::Labels, regions, name)
         x3=labels[t3...]
         if x!=0
           if x1!=0 && x!=x1
-            push!(L[UnorderedPair(x,x1)],Vec{4,Int}(t...,1))
+            push!(L[UnorderedPair(x,x1)],Vec{4,Index}(t...,1))
           end
           if x2!=0 && x!=x2
-            push!(L[UnorderedPair(x,x2)],Vec{4,Int}(t...,2))
+            push!(L[UnorderedPair(x,x2)],Vec{4,Index}(t...,2))
           end
           if x3!=0 && x!=x3
-            push!(L[UnorderedPair(x,x3)],Vec{4,Int}(t...,3))
+            push!(L[UnorderedPair(x,x3)],Vec{4,Index}(t...,3))
           end
         end
       end

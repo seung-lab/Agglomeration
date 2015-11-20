@@ -13,13 +13,13 @@ immutable dataset{name}
 
   #Holds the label data that came out from watershed
   machine_labels::LabelData.Labels
-  n_machine_labels::Int
+  n_machine_labels::Integer
   regions::Array{LabelData.Region{name}}
   edges::Array{LabelData.Edge{name}}
 
   #Holds the labels from ground truth
   human_labels::LabelData.Labels
-  n_human_labels::Int
+  n_human_labels::Integer
   
 end
 
@@ -30,7 +30,7 @@ end
 function Base.size(d::dataset,i)
   d.size[i]
 end
-@inline function Base.getindex{T,n}(A::Array{T,n},i::Vec{n,Int})
+@inline function Base.getindex{T,n}(A::Array{T,n},i::Vec{n,LabelData.Index})
   return A[i...]
 end
 
@@ -74,11 +74,11 @@ function load_labels(file_path)
     return zeros(0,0,0), 0
 
   elseif file_path[end-2:end] == "jls"
-    labels = convert(Array{Int},InputOutput.load(file_path))
+    labels = convert(Array{LabelData.Label},InputOutput.load(file_path))
     return labels, maximum(labels)
 
   elseif file_path[end-1:end] == "h5" || file_path[end-3:end] == "hdf5"
-    labels = convert( Array{Int}, h5read(file_path,"/main"))
+    labels = convert( Array{LabelData.Label}, h5read(file_path,"/main"))
     return labels, maximum(labels)
 
   else 
@@ -88,7 +88,7 @@ function load_labels(file_path)
 end
 
 
-function build_labels(machine_labels::LabelData.Labels, n_machine_labels::Int, name::Symbol)
+function build_labels(machine_labels::LabelData.Labels, n_machine_labels::Integer, name::Symbol)
   if machine_labels == zeros(0,0,0)
     return false, false
   end
