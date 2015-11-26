@@ -15,14 +15,14 @@ using Datasets
 
 
 function __init__()
-  FOLDER_TRAIN= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/ds_train"))
+  FOLDER_TRAIN= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/SNEMI3D/ds_train"))
 
   global Train = Datasets.add_dataset(:SNEMI3DTrain,
                                       "$FOLDER_TRAIN/affinities.jls", 
                                       "$FOLDER_TRAIN/machine_labels.jls",
                                       "$FOLDER_TRAIN/human_labels.jls")
 
-  FOLDER_TEST= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/ds_test"))
+  FOLDER_TEST= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/SNEMI3D/ds_test"))
 
   global Test = Datasets.add_dataset(:SNEMI3DTest,
                                       "$FOLDER_TEST/affinities.jls", 
