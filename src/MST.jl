@@ -17,15 +17,15 @@ function build_mst(rg)
   mst = mst_type(Array{UInt32,1}[], Array{Float32,1}())
   for region in keys(rg)
 
-    region_graph = DefaultDict(Int , Dict{Int , Real},
+    atomic_region_graph = DefaultDict(Int , Dict{Int , Real},
                    ()->Dict{Int , Real}())
-    recursive_build_graph!(region_graph,region)
-    if length(region_graph) == 0
+
+    recursive_build_graph!(atomic_region_graph,region)
+    if length(atomic_region_graph) == 0
       continue
     end
     
-    subtree = mst_type(Array{UInt32,1}[], Array{Float32,1}())
-    graph_to_tree(subtree, region_graph)
+    subtree = graph_to_tree(atomic_region_graph)
 
     push!(mst.dend, subtree.dend...)
     push!(mst.dendValues, subtree.dendValues...)
@@ -35,11 +35,11 @@ function build_mst(rg)
   return mst
 end
 
-function graph_to_tree(tree, 
-                       region_graph::DataStructures.DefaultDict{Int64,Dict{Int64,Real},Function}) 
+function graph_to_tree(region_graph::DataStructures.DefaultDict{Int64,Dict{Int64,Real},Function}) 
   
 
   #BFS
+  tree = mst_type(Array{UInt32,1}[], Array{Float32,1}())
   visited = Set()
   root = first(keys(region_graph))
 
@@ -64,6 +64,7 @@ function graph_to_tree(tree,
     end
   end
 
+  return tree
 
 end
 
