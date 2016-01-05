@@ -3,39 +3,52 @@ module TestUtils
 using Agglomerator
 using Base.Test
 
-using SNEMI3D, Agglomerators, LabelData, SegmentationMetrics,Datasets,MST,InputOutput
+using SNEMI3D, Agglomerators, LabelData, SegmentationMetrics,Datasets,MST,InputOutput, piriform
 using DataFrames
 using Gadfly
 
 export run_test, save_error, plot_error
 
-function run_test(ag,name)
-	rg=LabelData.atomic_region_graph(SNEMI3D.Test.edges,:SNEMI3DTest)
-	#apply the oracle agglomerator with a given threshold
-	sm=[]
-	for threshold in reverse(0.0:0.5:1.0)
-		apply_agglomeration!(rg,ag,threshold)
-		push!(sm,Datasets.compute_error(rg))
-		if length(keys(rg))<=2
-			break
-		end
+function run_test(ag,name, dataset="SNEMI3D")
+
+	if dataset == "SNEMI3D"
+		from = "$(dirname(@__FILE__))/../deps/datasets/SNEMI3D/us_test/omni/Empty.omni"
+  	to = "$(dirname(@__FILE__))/../deps/datasets/SNEMI3D/us_test/omni/$(name).omni"
+		copy_omni_project(from, to)
+		mst_path = "$(dirname(@__FILE__))/../deps/datasets/SNEMI3D/us_test/omni/$(name).omni.files/users/_default/segmentations/segmentation1/segments/mst.data"
+		rg=LabelData.atomic_region_graph(SNEMI3D.Test.edges,:SNEMI3DTest)
+
+	else
+		# from = "$(dirname(@__FILE__))/../deps/datasets/pirifrom/train/omni/Empty.omni"
+  # 	to = "$(dirname(@__FILE__))/../deps/datasets/pirifrom/train/omni/$(name).omni"
+		# copy_omni_project(from, to)
+
+		mst_path = "$(dirname(@__FILE__))/../deps/datasets/piriform/train/omni/mst.data"
+		rg=LabelData.atomic_region_graph(piriform.Test.edges,:PiriformTrain)
 	end
+
+	#apply the oracle agglomerator with a given threshold
+	# sm=[]
+	# for threshold in reverse(0.0:0.5:1.0)
+	# 	apply_agglomeration!(rg,ag,threshold)
+	# 	push!(sm,Datasets.compute_error(rg))
+	# 	if length(keys(rg))<=2
+	# 		break
+	# 	end
+	# end
 	
-  from = "$(dirname(@__FILE__))/../deps/datasets/us_test/omni/Empty.omni.files"
-  to = abspath("$(dirname(@__FILE__))/../deps/datasets/us_test/omni/$(name).omni.files")
-	
-	println("Created new project in $to")
-	cp(from,to; remove_destination=true)
-	
-  from = "$(dirname(@__FILE__))/../deps/datasets/us_test/omni/Empty.omni"
-  to = "$(dirname(@__FILE__))/../deps/datasets/us_test/omni/$(name).omni"
-	cp(from,to; remove_destination=true)
-	
+	apply_agglomeration!(rg,ag,0.1)
 	mst=MST.build_mst(rg)
-	mst_path = "$(dirname(@__FILE__))/../deps/datasets/us_test/omni/$(name).omni.files/users/_default/segmentations/segmentation1/segments/mst.data"
 	MST.saveBinary(mst,mst_path)
 
-	save_error(sm,name)
+	# save_error(sm,name)
+end
+
+function copy_omni_project(from_project_path, to_project_path)
+
+	cp(from_project_path,to_project_path; remove_destination=true)
+	cp(from_project_path+".files",to_project_path+".files"; remove_destination=true)
+
 end
 
 results_file="$(dirname(@__FILE__))/results.jls"

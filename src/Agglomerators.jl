@@ -21,7 +21,7 @@ OracleAgglomerator
 export atomic_region_graph, apply_agglomeration!
 export train!
 
-#Util
+#Same as deque but returns the priority value and not only the dequed element 
 function dequeue2!(pq::PriorityQueue)
 	x = pq.xs[1]
 	y = pop!(pq.xs)
@@ -111,69 +111,93 @@ function train!(ag::Agglomerator,examples)
 	train!(ag,examples,OracleAgglomerator())
 end
 
-#n_svoxels(r::AtomicRegion)=1
-#n_svoxels(r::TreeRegion)=n_svoxels(r.right)+n_svoxels(r.left)
+function populate_priority_queue{name}(rg::LabelData.RegionGraph{name}, ag::Agglomerator, threshold::Real)
+	
+	rre_list =chain([[(r1,r2,edge) for (r2,edge) in tails] for (r1,tails) in rg]...)
 
-function apply_agglomeration!{name}(A::LabelData.RegionGraph{name},ag::Agglomerator, threshold)
-
-	#println(sum([n_svoxels(x) for x in keys(A)]))
-	edges=chain([[(r1,r2,edge) for (r2,edge) in tails] for (r1,tails) in A]...)
-	pq=PriorityQueue(region_region_edge,Real,Base.Order.Reverse)
-	for e in edges
-		tmp=ag(e)
-		if tmp > threshold
-			Collections.enqueue!(pq,e,tmp)
+	pq=PriorityQueue(region_region_edge, Real, Base.Order.Reverse)
+	for rre in rre_list
+		
+		score=ag(rre)
+		if score > threshold
+			Collections.enqueue!(pq,rre,score)
 		end
+
 	end
 
-	ignore = 0
+	return pq
+end
+
+function merge_regions{name}(r1::LabelData.Region{name}, r2::LabelData.Region{name} , edge:: LabelData.Edge{name}, rg::LabelData.RegionGraph{name}, priority::Real)
+
+	nbs1=to_default_dict( rg[r1] )
+	nbs2=to_default_dict( rg[r2] )
+
+	#Delete the edges connecting these two regions
+	delete!(nbs1,r2)
+	delete!(nbs2,r1)
+
+	#Create a set with all neighboors regions of this two regions
+	all_nbs=Set(chain(keys(nbs1),keys(nbs2)))
+
+	merged_region = LabelData.TreeRegion(r1, r2 , edge, priority)
+
+	#create merged_region key with default value
+	rg[merged_region] = Dict{LabelData.Region, LabelData.Edge}()
+
+	#Remove old regions
+	delete!(rg,r1)
+	delete!(rg,r2)
+
+	return all_nbs , nbs1 , nbs2 , merged_region
+end
+
+function update_neighboor_edge( neighboor , r1, nbs1, r2 , nbs2 , merged_region, rg )
+
+	neighboor_edge = LabelData.TreeEdge(nbs1[neighboor], nbs2[neighboor])
+	rg[merged_region][neighboor]= neighboor_edge
+	rg[neighboor][merged_region]= neighboor_edge
+
+	#Remove the old edges from the RegionGraph
+	#The one from the neighboors regions to the two regions being merged
+	delete!(rg[neighboor], r1)
+	delete!(rg[neighboor], r2)
+
+	return neighboor_edge
+end
+
+
+function apply_agglomeration!{name}(rg::LabelData.RegionGraph{name}, ag::Agglomerator, threshold::Real)
+
+	pq = populate_priority_queue(rg, ag, threshold)
+
 	while(!isempty(pq))
-		e, priority = dequeue2!(pq)
+		rre, priority = dequeue2!(pq)
+		r1 , r2, edge = rre
 
-		if haskey(A, e[1]) && haskey(A,e[2])
+		if haskey(rg, r1) && haskey(rg, r2)
 
-			nbs1=to_default_dict( A[e[1]] )
-			nbs2=to_default_dict( A[e[2]] )
+      all_nbs , nbs1 , nbs2 , merged_region = merge_regions(r1, r2, edge ,  rg , priority)
 
 
-			#Delete the edges connecting these two regions
-			delete!(nbs1,e[2])
-			delete!(nbs2,e[1])
+      #we iterate throu all the neighboors of both regions and create a TreeEdge.
+      #If one region is not a neighboor of the two regions being merged, and EmptyEdge is created
+			for neighboor in all_nbs
 
-			#Create a set with all neighboors regions of this two regions
-			all_nbs=Set(chain(keys(nbs1),keys(nbs2)))
-			#println(length(all_nbs))
+				neighboor_edge = update_neighboor_edge( neighboor ,r1 , nbs1, r2, nbs2 , merged_region, rg )
 
-			new_region= LabelData.TreeRegion(e[1],e[2],e[3], priority)
-
-			#Adds new_region key with default value
-			A[new_region]
-
-			for r in all_nbs
-				new_edge=LabelData.TreeEdge(nbs1[r],nbs2[r])
-				A[new_region][r]=new_edge
-				A[r][new_region]=new_edge
-
-				#Remove the old regions from the RegionGraph
-				delete!(A[r],e[1])
-				delete!(A[r],e[2])
-
-				tmp=ag((new_region,r,new_edge))
-				if tmp > threshold
-					Collections.enqueue!(pq,(new_region,r,new_edge),tmp)
+				score = ag((merged_region, neighboor, neighboor_edge))
+				if score > threshold
+					Collections.enqueue!(pq,(merged_region, neighboor, neighboor_edge),score)
 				end
 			end
-			delete!(A,e[1])
-			delete!(A,e[2])
-		else
-			ignore = ignore + 1
+
 		end
 
 	end
-	println("Merged to $(length(keys(A))) regions")
-	println("Ignored $ignore edges")
-	#println(sum([n_svoxels(x) for x in keys(A)]))
-	return A
+	println("Merged to $(length(keys(rg))) regions")
+	#println(sum([n_svoxels(x) for x in keys(rg)]))
+	return rg
 end
 
 
