@@ -23,25 +23,25 @@ function run_test(ag,name, dataset="SNEMI3D")
   # 	to = "$(dirname(@__FILE__))/../deps/datasets/pirifrom/train/omni/$(name).omni"
 		# copy_omni_project(from, to)
 
-		# mst_path = "$(dirname(@__FILE__))/../deps/datasets/pirifrom/train/omni/$(name).omni.files/users/_default/segmentations/segmentation1/segments/mst.data"
-		rg=LabelData.atomic_region_graph(piriform.Train.edges,:PiriformTrain)
+		mst_path = "$(dirname(@__FILE__))/../deps/datasets/piriform/train/omni/mst.data"
+		rg=LabelData.atomic_region_graph(piriform.Test.edges,:PiriformTrain)
 	end
 
 	#apply the oracle agglomerator with a given threshold
-	sm=[]
-	for threshold in reverse(0.0:0.5:1.0)
-		apply_agglomeration!(rg,ag,threshold)
-		push!(sm,Datasets.compute_error(rg))
-		if length(keys(rg))<=2
-			break
-		end
-	end
+	# sm=[]
+	# for threshold in reverse(0.0:0.5:1.0)
+	# 	apply_agglomeration!(rg,ag,threshold)
+	# 	push!(sm,Datasets.compute_error(rg))
+	# 	if length(keys(rg))<=2
+	# 		break
+	# 	end
+	# end
 	
-	
+	apply_agglomeration!(rg,ag,0.1)
 	mst=MST.build_mst(rg)
-	# MST.saveBinary(mst,mst_path)
+	MST.saveBinary(mst,mst_path)
 
-	save_error(sm,name)
+	# save_error(sm,name)
 end
 
 function copy_omni_project(from_project_path, to_project_path)
