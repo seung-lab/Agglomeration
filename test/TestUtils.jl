@@ -47,7 +47,7 @@ end
 function copy_omni_project(from_project_path, to_project_path)
 
 	cp(from_project_path,to_project_path; remove_destination=true)
-	cp(from_project_path+".files",to_project_path+".files"; remove_destination=true)
+	cp(string(from_project_path,".files"),string(to_project_path,".files"); remove_destination=true)
 
 end
 
