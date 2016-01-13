@@ -37,7 +37,7 @@ function run_test(ag,name, dataset="SNEMI3D")
 	# 	end
 	# end
 	
-	apply_agglomeration!(rg,ag,0.1)
+	apply_agglomeration!(rg,ag,0.5)
 	mst=MST.build_mst(rg)
 	MST.saveBinary(mst,mst_path)
 

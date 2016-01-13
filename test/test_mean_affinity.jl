@@ -8,4 +8,4 @@ Function[
 x->mean_affinity(x[3]),
 ],
 [1.0])
-run_test(ag,"mean_affinity","piriform")
+run_test(ag,"mean_affinity")
