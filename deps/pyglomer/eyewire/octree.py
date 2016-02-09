@@ -14,8 +14,8 @@ def to_octree( volume ):
 
 def _to_octree( volume, queue ):
 
-  if volume.shape == (2,2,2):
-    return []
+  if volume.shape == (1,1,1):
+    return volume
 
   octree = []
   for sub_idx in range(8):

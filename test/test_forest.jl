@@ -1,5 +1,5 @@
 using Agglomerator
-using TestUtils, LabelData,SNEMI3D,Agglomerators, Features
+using TestUtils, LabelData, SNEMI3D, Agglomerators, Features
 rg=LabelData.atomic_region_graph(SNEMI3D.Train.edges, :SNEMI3DTrain)
 oracle=AccumulatingAgglomerator(OracleAgglomerator())
 apply_agglomeration!(rg,oracle,0.5)

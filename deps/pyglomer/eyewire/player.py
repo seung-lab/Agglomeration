@@ -1,5 +1,5 @@
-#Path hack.
-import sys; import os; sys.path.insert(0, os.path.abspath('..'));
+
+import os
 import inspect
 filename = inspect.getframeinfo(inspect.currentframe()).filename
 path = os.path.dirname(os.path.abspath(filename))  
@@ -8,7 +8,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from mysql import db
+from mysql import *
 
 class Player:
     

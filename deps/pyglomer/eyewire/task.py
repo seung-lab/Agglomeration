@@ -1,9 +1,5 @@
-#Path hack.
-import sys; import os
-sys.path.insert(0, os.path.abspath('..'))
-
 from volume import *
-from mysql import db
+from mysql import *
 
 
 class task:

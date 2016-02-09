@@ -5,15 +5,20 @@ import numpy as np
 class Mysql:
 
   def __init__(self):
-    self.connection = pymysql.connect(host= db['host'], port= db['port'] , user=db['user'], passwd=db['password'], db=db['database'])
-    print 'connected to database'
+    self.connection = None
 
   def __del__(self):
-    self.connection.close()
-    print 'connection closed'
+    if self.connection != None:
+      self.connection.close()
+      self.connection = None
+
+  def maybe_connect(self):
+    if self.connection == None:
+      self.connection = pymysql.connect(host= db['host'], port= db['port'] , user=db['user'], passwd=db['password'], db=db['database'])
 
 
   def query(self, stringQuery):
+    self.maybe_connect()
 
     cursor = self.connection.cursor(pymysql.cursors.DictCursor)
     cursor.execute(stringQuery)

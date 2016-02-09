@@ -1,8 +1,5 @@
-import sys; import os
-sys.path.insert(0, os.path.abspath('../eyewire'))
-
-import mesh
-from volume import *
+import eyewire.mesh
+from eyewire.volume import *
 from shove import Shove
 
 from tqdm import *
@@ -50,7 +47,7 @@ def find_examples_in_tasks(volume_id, tasks , adjacency, volume , segment_meshes
     adj_1 = get_mesh(seg_1)
     adj_2 = get_mesh(seg_2)
 
-    disp_1, disp_2 = mesh.compute_feature(seg_1, seg_2, adj_1, adj_2, volume)
+    disp_1, disp_2 = mesh.compute_feature(seg_1, seg_2, adj_1, adj_2, adjacency[seg_1][seg_2], volume)
 
     dataset[key] = ({ 'disp_1':disp_1, 
                       'disp_2':disp_2,
@@ -70,6 +67,7 @@ def find_examples_in_tasks(volume_id, tasks , adjacency, volume , segment_meshes
           add_example( seg_id , adjacent_seg_id, True )
         else:
           add_example( seg_id , adjacent_seg_id, False )
+    
 
 
 def get_most_traced_volumes( limit=50 ):
@@ -90,7 +88,6 @@ def get_most_traced_volumes( limit=50 ):
   return volume_list
 
 def main():
-  # dataset = dict()
   dataset = Shove("lite://tmp/dataset","lite://:memory:")
 
   volumes =  get_most_traced_volumes()
@@ -109,9 +106,6 @@ def main():
     except Exception, e:
       print 'failed to prepare volume' , volume_id
       print e
-
-    # print 'saving'
-    # _dump(dataset, 'dataset')
 
 if __name__ == '__main__':
   main()

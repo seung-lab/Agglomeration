@@ -13,15 +13,12 @@ from io import BytesIO
 import itertools
 import Image
 
+from mysql import *
 
-#Path hack.
-import sys; import os
-sys.path.insert(0, os.path.abspath('..'))
+import mesh
+from collections import *
 
-from mysql import db
-print db
-
-class volume:
+class volume(object):
 
   def __init__(self, id , isSegmentation = None):
 
@@ -34,13 +31,12 @@ class volume:
   def getProjectPath(self):
 
     if self.path == None:
-
       fullPath = db.query("SELECT path FROM volumes WHERE id = "+str(self.id))[0][0]
       relativePath = os.path.relpath(fullPath, '/usr/local/omni/data/omelette2')
       home = os.path.expanduser("~")
       mountPoint = '/seung/EyeWire/'
       self.path = os.path.join(home + mountPoint +  relativePath)
-    
+          
     return self.path
 
   def getSegmentSize(self, segId):
@@ -169,6 +165,7 @@ class volume:
     elif self.isSegmentation == True:
         filepath = '/segmentations/segmentation1/0/volume.uint32_t.raw'
         builtPath = os.path.join( self.getProjectPath() + filepath)
+        print builtPath
         fileArray = np.fromfile(builtPath , dtype=np.uint32)
     else:
         filepath = '/channels/channel1/0/volume.float.raw'
@@ -277,20 +274,15 @@ class volume:
       self.getTile()
     vol = self.data
       
-    adjacency = dict()
+    adjacency = defaultdict(lambda : defaultdict(list))
 
-    def union_seg(id_1, id_2):
+
+    def union_seg(id_1, id_2, voxel_position):
       if id_1 == 0 or id_2 == 0 or id_1 == id_2:
         return 
 
-      if id_1 not in adjacency:
-        adjacency[id_1] = set()
-
-      if id_2 not in adjacency:
-        adjacency[id_2] = set()
-
-      adjacency[id_1].add(id_2)
-      adjacency[id_2].add(id_1)
+      adjacency[id_1][id_2].append(voxel_position)
+      adjacency[id_2][id_1].append(voxel_position)
 
 
     for x in range(vol.shape[0]-1):
@@ -298,13 +290,13 @@ class volume:
         for z in range(vol.shape[2]-1): 
 
           if vol[x,y,z] != vol[x+1,y,z]:
-            union_seg(vol[x,y,z], vol[x+1,y,z])
+            union_seg(vol[x,y,z], vol[x+1,y,z], (x+0.5,y,z))
 
           if vol[x,y,z] != vol[x,y+1,z]:
-            union_seg(vol[x,y,z], vol[x,y+1,z])
+            union_seg(vol[x,y,z], vol[x,y+1,z], (x,y+0.5,z))
 
-          if vol[x,y,z] != vol[x,y+1,z]:
-            union_seg(vol[x,y,z], vol[x,y,z+1])
+          if vol[x,y,z] != vol[x,y,z+1]:
+            union_seg(vol[x,y,z], vol[x,y,z+1], (x,y,z+0.5))
 
     return adjacency
 
@@ -314,12 +306,8 @@ class volume:
       self.getTile()
     vol = self.data
 
-    segment_size = dict()
+    segment_size = defaultdict(int)
     for seg in vol.flatten():
-
-      if seg not in segment_size:
-        segment_size[seg] = 0
-
       segment_size[seg] += 1
 
     return segment_size
@@ -370,6 +358,91 @@ class volume:
 
  
 if __name__ == '__main__':
-  vol = volume(116624 , True)
+  from itertools import product
+  def divide_volume( vol , overlap=0 ):
+    volumes = []
+    for chunk in product(range(vol.shape[0]/128),range(vol.shape[1]/128),range(vol.shape[2]/128)):
 
-  assert sum(vol.get_segment_sizes().values()) == 256**3
+      start = np.array(chunk) * 128
+      end = np.minimum((np.array(chunk) + 1) * 128 + overlap, vol.shape)
+      volumes.append( vol[start[0]:end[0], start[1]:end[1], start[2]:end[2]] )
+
+    return volumes
+
+  def get_segments_size(vol):
+    segment_size = defaultdict(int)
+    for seg in vol.flatten():
+      segment_size[seg] += 1
+
+    return segment_size
+
+  def dsum(*dicts):
+      ret = defaultdict(int)
+      for d in dicts:
+          for k, v in d.items():
+              ret[k] += v
+      return dict(ret) 
+
+  def get_adjacency_segments(vol):
+    
+      
+    adjacency = defaultdict(lambda : defaultdict(list))
+    def union_seg(id_1, id_2, voxel_position):
+      if id_1 == 0 or id_2 == 0 or id_1 == id_2:
+        return 
+
+      adjacency[id_1][id_2].append(voxel_position)
+      adjacency[id_2][id_1].append(voxel_position)
+      return 
+
+
+    for x in range(vol.shape[0]-1):
+      for y in range(vol.shape[1]-1):
+        for z in range(vol.shape[2]-1): 
+
+          if vol[x,y,z] != vol[x+1,y,z]:
+            union_seg(vol[x,y,z], vol[x+1,y,z], (x+0.5,y,z))
+
+          if vol[x,y,z] != vol[x,y+1,z]:
+            union_seg(vol[x,y,z], vol[x,y+1,z], (x,y+0.5,z))
+
+          if vol[x,y,z] != vol[x,y,z+1]:
+            union_seg(vol[x,y,z], vol[x,y,z+1], (x,y,z+0.5))
+
+    return adjacency
+
+  def dsum_adjacents(*dicts):
+      
+      ret = defaultdict(lambda : defaultdict(list))
+      for d in dicts:
+          for id_1, dict_2 in d.items():
+            for id_2, voxels in dict_2.items():
+              ret[id_1][id_2] += voxels
+
+      return ret
+
+  def main():
+    vol = volume(116624 , True)
+    vol.getTile() 
+
+    volumes = divide_volume(vol.data)
+    chunk_sizes = map( get_segments_size , volumes)
+    segment_sizes = reduce( dsum , chunk_sizes )
+    o_sizes = vol.get_segment_sizes()
+    assert segment_sizes == o_sizes
+
+
+    volumes = divide_volume(vol.data, overlap=2)
+    chunks_adjacency = map( get_adjacency_segments, volumes)
+    adjacency = reduce( dsum_adjacents, chunks_adjacency)
+    o_adjacents =  vol.get_adjacency_segments()
+
+    from deepdiff import DeepDiff
+    print DeepDiff(adjacency, o_adjacents, ignore_order=True)
+
+
+  main()
+
+  # assert sum(vol.get_segment_sizes().values()) == 256**3
+  # print len()
+  #mesh.display_pair(116624, 480, 8, vol.get_adjacency_segments()[480][8])

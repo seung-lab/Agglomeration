@@ -199,12 +199,22 @@ def find_displacements( adj, adj_patch, matches_adj_adj ):
     magnitudes.append(magnitude)
   return magnitudes
 
-def compute_feature( id_1 , id_2, adj_1 , adj_2 , volume):
+def compute_feature( id_1 , id_2, adj_1 , adj_2 , contact_regions, volume):
 
-  matches_adj_adj = find_matching_vertices( adj_1, adj_2 )
-  adj_patch = get_patch( id_1 , id_2, adj_1, adj_2, matches_adj_adj, volume )
-  disp_1 = find_displacements(adj_1, adj_patch, matches_adj_adj)
-  disp_2 = find_displacements(adj_2, adj_patch, matches_adj_adj)
+  # matches_adj_adj = find_matching_vertices( adj_1, adj_2 )
+  # if set(map( lambda tup: tuple([int(x * 2) for x in tup]), contact_regions)) ==  set(matches_adj_adj):
+  #   print 'matches'
+  # else:
+  #   new =  set(map( lambda tup: tuple([int(x * 2) for x in tup]), contact_regions)) 
+  #   old = set(matches_adj_adj)
+  #   print 'intersection', new.intersection(old)
+  #   print 'only new', new.difference(old)
+  #   print 'old olny', old.difference(new)
+  #   print 'new', new
+  #   print 'old', old
+  adj_patch = get_patch( id_1 , id_2, adj_1, adj_2, contact_regions, volume )
+  disp_1 = find_displacements(adj_1, adj_patch, contact_regions)
+  disp_2 = find_displacements(adj_2, adj_patch, contact_regions)
   return disp_1, disp_2
 
 
@@ -219,7 +229,7 @@ def display_marching_cubes(vertices, triangles, color=(0, 0, 0), opacity=1.0):
   mlab.pipeline.surface(mlab.pipeline.extract_edges(surf), color=color)
   return
 
-def display_pair( volume_id , id_1, id_2):
+def display_pair( volume_id , id_1, id_2, matches):
   """ Given a volume_id, and two segments ids, it display both
       individual meshes, the mesh of the patch connecting them,
       and the displacemts vectors. Used for debugging.
@@ -227,7 +237,6 @@ def display_pair( volume_id , id_1, id_2):
 
   vol = volume(volume_id , True)
   vol.getTile()
-  print vol
 
   vertices, triangles = marche_cubes( id_1 , vol.data )
   display_marching_cubes(vertices, triangles , color = (1.0,0.0,0.0), opacity=0.5)
@@ -245,7 +254,18 @@ def display_pair( volume_id , id_1, id_2):
   disp_2 = find_displacements(adj_2, adj_patch, matches_adj_adj)
 
   #TODO display displacements
-   # mlab.points3d(vertex[0], vertex[1], vertex[2], scale_factor=0.2, resolution=24)
+  matches = set(map( lambda tup: tuple([int(x * 2) for x in tup]), matches))
+  matches_adj_adj = set(matches_adj_adj)
+  for match in matches.union(matches_adj_adj):
+
+    if match in matches and match in matches_adj_adj:
+      color = (1.0,1.0,1.0)
+    elif  match not in matches and match in matches_adj_adj:
+      color = (0.0,0.0,1.0)
+    else:
+      color = (1.0,0.0,0.0)
+
+    mlab.points3d(match[0], match[1], match[2], scale_factor=0.5, resolution=24 , color=color)
     #debug
     # mlab.quiver3d(vertex[0], vertex[1], vertex[2],
     #               patch_displacement[0], patch_displacement[1], patch_displacement[2] 
@@ -255,6 +275,7 @@ def display_pair( volume_id , id_1, id_2):
   mlab.show()
   return
 
-    
+if __name__ == '__main__':
+  pass
 
 
