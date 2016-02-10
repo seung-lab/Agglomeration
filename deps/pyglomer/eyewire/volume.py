@@ -281,21 +281,21 @@ class volume(object):
       if id_1 == 0 or id_2 == 0 or id_1 == id_2:
         return 
 
-      adjacency[id_1][id_2].append(voxel_position)
-      adjacency[id_2][id_1].append(voxel_position)
+      adjacency[id_1][id_2].append(1)
+      adjacency[id_2][id_1].append(1)
 
 
-    for x in range(vol.shape[0]-1):
-      for y in range(vol.shape[1]-1):
-        for z in range(vol.shape[2]-1): 
-
-          if vol[x,y,z] != vol[x+1,y,z]:
+    for x in range(vol.shape[0]):
+      for y in range(vol.shape[1]):
+        for z in range(vol.shape[2]): 
+          
+          if x + 1 < vol.shape[0] and vol[x,y,z] != vol[x+1,y,z]:
             union_seg(vol[x,y,z], vol[x+1,y,z], (x+0.5,y,z))
 
-          if vol[x,y,z] != vol[x,y+1,z]:
+          if y + 1 < vol.shape[1] and vol[x,y,z] != vol[x,y+1,z]:
             union_seg(vol[x,y,z], vol[x,y+1,z], (x,y+0.5,z))
 
-          if vol[x,y,z] != vol[x,y,z+1]:
+          if z + 1 < vol.shape[2] and vol[x,y,z] != vol[x,y,z+1]:
             union_seg(vol[x,y,z], vol[x,y,z+1], (x,y,z+0.5))
 
     return adjacency
@@ -359,12 +359,16 @@ class volume(object):
  
 if __name__ == '__main__':
   from itertools import product
-  def divide_volume( vol , overlap=0 ):
+  def divide_volume( vol , chunk_size = 128 , overlap=0 ):
     volumes = []
-    for chunk in product(range(vol.shape[0]/128),range(vol.shape[1]/128),range(vol.shape[2]/128)):
+    n_chunks =  np.maximum(np.array(vol.shape) / chunk_size, np.array([1,1,1]))
+    print vol.shape, n_chunks
+    for chunk in product(range(n_chunks[0]),range(n_chunks[1]),range(n_chunks[2])):
 
-      start = np.array(chunk) * 128
-      end = np.minimum((np.array(chunk) + 1) * 128 + overlap, vol.shape)
+      start = np.maximum(np.array(chunk) * chunk_size, np.array([0,0,0]))
+      end =  np.minimum((np.array(chunk) + 1)* chunk_size + overlap, vol.shape)
+
+      print chunk, start, end
       volumes.append( vol[start[0]:end[0], start[1]:end[1], start[2]:end[2]] )
 
     return volumes
@@ -391,22 +395,22 @@ if __name__ == '__main__':
       if id_1 == 0 or id_2 == 0 or id_1 == id_2:
         return 
 
-      adjacency[id_1][id_2].append(voxel_position)
-      adjacency[id_2][id_1].append(voxel_position)
+      adjacency[id_1][id_2].append(1)
+      adjacency[id_2][id_1].append(1)
       return 
 
 
-    for x in range(vol.shape[0]-1):
-      for y in range(vol.shape[1]-1):
-        for z in range(vol.shape[2]-1): 
+    for x in range(vol.shape[0]):
+      for y in range(vol.shape[1]):
+        for z in range(vol.shape[2]): 
 
-          if vol[x,y,z] != vol[x+1,y,z]:
+          if x + 1 < vol.shape[0] and vol[x,y,z] != vol[x+1,y,z]:
             union_seg(vol[x,y,z], vol[x+1,y,z], (x+0.5,y,z))
 
-          if vol[x,y,z] != vol[x,y+1,z]:
+          if y + 1 < vol.shape[1] and vol[x,y,z] != vol[x,y+1,z]:
             union_seg(vol[x,y,z], vol[x,y+1,z], (x,y+0.5,z))
 
-          if vol[x,y,z] != vol[x,y,z+1]:
+          if z + 1 < vol.shape[2] and vol[x,y,z] != vol[x,y,z+1]:
             union_seg(vol[x,y,z], vol[x,y,z+1], (x,y,z+0.5))
 
     return adjacency
@@ -423,16 +427,23 @@ if __name__ == '__main__':
 
   def main():
     vol = volume(116624 , True)
-    vol.getTile() 
+    vol.getTile()
+    # vol.data = vol.data[48:50,2:10,2:4] 
 
-    volumes = divide_volume(vol.data)
-    chunk_sizes = map( get_segments_size , volumes)
-    segment_sizes = reduce( dsum , chunk_sizes )
-    o_sizes = vol.get_segment_sizes()
-    assert segment_sizes == o_sizes
+    # for z in range(2):
+    #   np.set_printoptions(threshold=np.nan)
+    #   print vol.data[:,:,z]
 
 
-    volumes = divide_volume(vol.data, overlap=2)
+    # volumes = divide_volume(vol.data)
+    # chunk_sizes = map( get_segments_size , volumes)
+    # segment_sizes = reduce( dsum , chunk_sizes )
+    # o_sizes = vol.get_segment_sizes()
+    # assert segment_sizes == o_sizes
+
+
+    volumes = divide_volume(vol.data, chunk_size=128, overlap=1)
+    print len(volumes)
     chunks_adjacency = map( get_adjacency_segments, volumes)
     adjacency = reduce( dsum_adjacents, chunks_adjacency)
     o_adjacents =  vol.get_adjacency_segments()
