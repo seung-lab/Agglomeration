@@ -12,9 +12,12 @@ class Node(object):
      return "ids:" + str(self.ids) + "\t size:"+ str(self.size)
 
   def from_tuple(self, t ):
-    self.ids = t[0]
-    self.contact = t[1][0]
-    self.size = t[1][1]
+
+    key , values = t
+    self.ids = key
+    self.contact = values[0]
+    self.size = values[1]
+    self.mesh = values[2]
 
   def Merge( otherNode ):
     pass
@@ -57,8 +60,8 @@ class Graph(object):
     # node_1 = Node(seg_1)
     # node_2 = Node(seg_2)
 
-    self.g.add_edge((seg_1,), (seg_2,))
-    heappush( self.pq_edges , (weight, (seg_1,) , (seg_2,) ))
+    self.g.add_edge( seg_1, seg_2 )
+    heappush( self.pq_edges , (weight, seg_1, seg_2))
 
   def join_nodes(self, seg_1, seg_2):
     neighbors_1 = self.g.neighbors(seg_1)

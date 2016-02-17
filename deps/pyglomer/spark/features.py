@@ -21,8 +21,8 @@ class SegmentSize(VoxelFeature):
   def map(vol):
     segment_size = defaultdict(int)
 
-    end_without_overlap = vol.data.shape - vol.overlap
-    data = vol.data[:end_without_overlap[0],
+    end_without_overlap = vol.machine_labels.shape - vol.overlap
+    data = vol.machine_labels[:end_without_overlap[0],
                     :end_without_overlap[1],
                     :end_without_overlap[2]]
     for seg in data.flatten():
@@ -53,12 +53,12 @@ class ContactRegion(VoxelFeature):
       for y in range(shape[1]):
         for z in range(shape[2]): 
 
-          if x + 1 < shape[0] and vol.data[x,y,z] != vol.data[x+1,y,z]:
-            union_seg(vol.data[x,y,z], vol.data[x+1,y,z], (x+0.5,y,z))
-          if y + 1 < shape[1] and vol.data[x,y,z] != vol.data[x,y+1,z]:
-            union_seg(vol.data[x,y,z], vol.data[x,y+1,z], (x,y+0.5,z))
-          if z + 1 < shape[2] and vol.data[x,y,z] != vol.data[x,y,z+1]:
-            union_seg(vol.data[x,y,z], vol.data[x,y,z+1], (x,y,z+0.5))
+          if x + 1 < shape[0] and vol.machine_labels[x,y,z] != vol.machine_labels[x+1,y,z]:
+            union_seg(vol.machine_labels[x,y,z], vol.machine_labels[x+1,y,z], (x+0.5,y,z))
+          if y + 1 < shape[1] and vol.machine_labels[x,y,z] != vol.machine_labels[x,y+1,z]:
+            union_seg(vol.machine_labels[x,y,z], vol.machine_labels[x,y+1,z], (x,y+0.5,z))
+          if z + 1 < shape[2] and vol.machine_labels[x,y,z] != vol.machine_labels[x,y,z+1]:
+            union_seg(vol.machine_labels[x,y,z], vol.machine_labels[x,y,z+1], (x,y,z+0.5))
 
     return adjacency.iteritems()
 
@@ -77,11 +77,11 @@ class Mesh(VoxelFeature):
 
     meshes = dict()
 
-    for seg_id in np.unique( vol.data ):
+    for seg_id in np.unique( vol.machine_labels ):
       if seg_id == 0:
         continue
 
-      vertices, triangles = mesh.marche_cubes( seg_id , vol.data )
+      vertices, triangles = mesh.marche_cubes( seg_id , vol.machine_labels )
       if len(vertices) == 0:
         continue
 

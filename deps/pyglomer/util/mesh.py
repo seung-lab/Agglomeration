@@ -1,6 +1,6 @@
 import operator
+import numpy as np
 
-# import copy
 from skimage import measure
 from collections import defaultdict
 import itertools
