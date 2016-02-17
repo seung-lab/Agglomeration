@@ -1,8 +1,9 @@
-from volume import *
+import operator
 
 # import copy
 from skimage import measure
 from collections import defaultdict
+import itertools
 
 #For visualization
 from tvtk.api import tvtk
@@ -61,8 +62,33 @@ def get_adjacent( vertices, triangles ):
   return adj
 
 def get_vertices_triangles( adj ):
-  #TODO
-  pass
+
+  vertices = dict() 
+  vertex_counter = 0
+  for vertex in adj:
+    vertices[vertex] = vertex_counter
+    vertex_counter += 1
+
+  triangles = set()
+  for vertex_1 in adj:
+    adj_vertices = list(adj[vertex_1])
+
+    d = lambda vertex_2: np.linalg.norm(np.array(vertex_1) - np.array(vertex_2))
+    filterd_vertices = []
+    for adj_vertex in adj_vertices:
+      if d(adj_vertex) <= 2.1:
+        filterd_vertices.append(adj_vertex)
+
+    if len(filterd_vertices) < 2:
+      continue
+
+    for pair in itertools.combinations(filterd_vertices, 2):
+      triangle = vertices[vertex_1] , vertices[pair[0]], vertices[pair[1]]
+      triangles.add(triangle)
+
+
+  vertices = map(lambda x: x[0] , sorted(vertices.items(), key=operator.itemgetter(1)))
+  return np.array(vertices), np.array(list(triangles))
 
 def find_matching_vertices( adj_1, adj_2 ):
   """ Given two meshes represented as adjcents (see get_adjacent)
@@ -223,10 +249,15 @@ def display_marching_cubes(vertices, triangles, color=(0, 0, 0), opacity=1.0):
       remember to call mlab.show(), after everything 
       has being pushed.
   """
-
-  mesh = tvtk.PolyData(points=vertices, polys=triangles)
-  surf = mlab.pipeline.surface(mesh, opacity=opacity)
-  mlab.pipeline.surface(mlab.pipeline.extract_edges(surf), color=color)
+  if triangles == []:
+    for vertex in vertices:
+      mlab.points3d(vertex[0], vertex[1], vertex[2], scale_factor=0.5, resolution=24, color=color)
+  else:
+    mesh = tvtk.PolyData(points=vertices, polys=triangles)
+    surf = mlab.pipeline.surface(mesh, opacity=opacity)
+    mlab.pipeline.surface(mlab.pipeline.extract_edges(surf), color=color)
+  
+  mlab.show()
   return
 
 def display_pair( volume_id , id_1, id_2, matches):
@@ -265,7 +296,7 @@ def display_pair( volume_id , id_1, id_2, matches):
     else:
       color = (1.0,0.0,0.0)
 
-    mlab.points3d(match[0], match[1], match[2], scale_factor=0.5, resolution=24 , color=color)
+    mlab.points3d(match[0], match[1], match[2], scale_factor=0.5, resolution=5 , color=color)
     #debug
     # mlab.quiver3d(vertex[0], vertex[1], vertex[2],
     #               patch_displacement[0], patch_displacement[1], patch_displacement[2] 
