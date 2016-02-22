@@ -93,27 +93,45 @@ class Dataset:
       for seg_2 , voxels in neighbors.iteritems():
         self.g.add_edge(seg_1, seg_2, weight= np.random.rand())
 
-    ss = features.SegmentSize()
-    sizes = subvolumes.flatMap(ss.map).reduceByKey(ss.reduce)
-    nodes = adjcency.join(sizes)
+    # ss = features.SegmentSize()
+    # sizes = subvolumes.flatMap(ss.map).reduceByKey(ss.reduce)
+    # nodes = adjcency.join(sizes)
 
-    m = features.Mesh()
-    meshes = subvolumes.flatMap(m.map).reduceByKey(m.reduce)
-    nodes = adjcency.join(meshes)
+    # m = features.Mesh()
+    # meshes = subvolumes.flatMap(m.map).reduceByKey(m.reduce)
+    # nodes = adjcency.join(meshes)
 
-    nodes.saveAsPickleFile(self.files('nodes'))
+    # nodes.saveAsPickleFile(self.files('nodes'))
+    nx.write_gpickle(self.g.g , self.files('graph'))
     return
 
 
   def files(self, file):
-    files = {
-      'machine_labels': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/ds_test/machine_labels.h5',
-      'human_labels': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/ds_test/human_labels.h5',
-      'affinities': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/ds_test/affinities.h5',
-      'adjcency':'./pyglomer/spark/tmp/spark/adjcency',
-      'sizes':'./pyglomer/spark/tmp/spark/sizes',
-      'meshes': './pyglomer/spark/tmp/spark/meshes',
-      'nodes': './pyglomer/spark/tmp/spark/nodes'
+    production = True
+
+    if production:
+  
+      files = {
+        'machine_labels': 's3://agglomeration/snemi3d_ds_test/machine_labels.h5',
+        'human_labels': 's3://agglomeration/snemi3d_ds_test/human_labels.h5',
+        'affinities': 's3://agglomeration/snemi3d_ds_test/ffinities.h5',
+        'adjcency':'s3://agglomeration/snemi3d_ds_test/adjcency',
+        'sizes': 's3://agglomeration/snemi3d_ds_test/sizes',
+        'meshes':'s3://agglomeration/snemi3d_ds_test/meshes',
+        'nodes': 's3://agglomeration/snemi3d_ds_test/nodes',
+        'graph': 's3://agglomeration/snemi3d_ds_test/graph'
+
+    else:
+
+      files = {
+        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/ds_test/machine_labels.h5',
+        'human_labels': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/ds_test/human_labels.h5',
+        'affinities': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/ds_test/affinities.h5',
+        'adjcency':'./pyglomer/spark/tmp/adjcency',
+        'sizes': './pyglomer/spark/tmp/sizes',
+        'meshes':'./pyglomer/spark/tmp/meshes',
+        'nodes': './pyglomer/spark/tmp/nodes',
+        'graph': './pyglomer/spark/tmp/graph'
 
     }
     return files[file]
