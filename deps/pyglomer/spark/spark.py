@@ -29,10 +29,16 @@ def read_features( dataset ):
     n1 = id1_edge_n1[1][1]
     return edge, n1 
 
+  def evaluate_edge( unused ):
+    return unused[0], np.random.rand()
+
   n1 = edges.map(lambda edge: (edge[0], edge) ).join(nodes).map(remove_id)
   n2 = edges.map(lambda edge: (edge[1], edge) ).join(nodes).map(remove_id)
   edges = n1.join(n2)
-  edges.saveAsPickleFile('./pyglomer/spark/tmp/edges')
+  edge_scores = edges.map(evaluate_edge).collect()
+  for edge_score in edge_scores:
+    edge = edge_score[0]
+    score = edge_score[0]
 
   first_edge = edges.take(1)
   print first_edge[0]
@@ -54,10 +60,10 @@ def read_features( dataset ):
 
 if __name__ == '__main__':
 
-  conf = SparkConf().setMaster("local[3]").setAppName("Agglomerator")
-  conf.set("spark.executor.memory", "5g")
+  conf = SparkConf().setMaster("local[7]").setAppName("Agglomerator")
+  conf.set("spark.executor.memory", "20g")
   conf.set("spark.executor.cores", 1)
-  conf.set("spark.driver.memory",'4g')
+  conf.set("spark.driver.memory",'20g')
   sc = SparkContext(conf=conf)
 
   log4j = sc._jvm.org.apache.log4j

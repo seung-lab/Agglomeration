@@ -107,7 +107,7 @@ class Dataset:
 
 
   def files(self, file):
-    production = True
+    production = False
 
     if production:
   
@@ -120,6 +120,7 @@ class Dataset:
         'meshes':'s3://agglomeration/snemi3d_ds_test/meshes',
         'nodes': 's3://agglomeration/snemi3d_ds_test/nodes',
         'graph': 's3://agglomeration/snemi3d_ds_test/graph'
+      }
 
     else:
 
@@ -132,6 +133,6 @@ class Dataset:
         'meshes':'./pyglomer/spark/tmp/meshes',
         'nodes': './pyglomer/spark/tmp/nodes',
         'graph': './pyglomer/spark/tmp/graph'
-
-    }
+      }
+  
     return files[file]
