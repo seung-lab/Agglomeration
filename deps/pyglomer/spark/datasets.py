@@ -1,20 +1,23 @@
 from pyglomer.spark.graph import *
 from pyglomer.spark import features
+from pyspark.sql import Row
 
 import h5py
 import numpy as np
 from itertools import product
 from collections import namedtuple
+from pyspark.sql.types import *
 
 class Dataset:
 
-  def __init__(self, sc):
+  def __init__(self, sc, sqlContext):
     """
       SparkContext is required to return rdds
     """
     self.sc = sc
+    self.sqlContext = sqlContext
     self.g = Graph(sc)
-    pass
+    self.nodes =  None
 
   def graph(self):
     return self.g
@@ -85,24 +88,32 @@ class Dataset:
     return subvolumes
 
   def compute_voxel_features(self):
+    def to_row( data ):
+      return (list(map(int,data[0])), str(data[1])) 
 
     subvolumes = self._get_subvolumes()
     cr = features.ContactRegion()
     adjcency = subvolumes.flatMap(cr.map).reduceByKey(cr.reduce)
+    edges = []
     for seg_1, neighbors in adjcency.toLocalIterator():
       for seg_2 , voxels in neighbors.iteritems():
-        self.g.add_edge(seg_1, seg_2, weight= np.random.rand())
+        edges.append( (list(map(int,seg_1)), list(map(int,seg_1))) )
 
-    # ss = features.SegmentSize()
-    # sizes = subvolumes.flatMap(ss.map).reduceByKey(ss.reduce)
-    # nodes = adjcency.join(sizes)
+    self.edges = self.sqlContext.createDataFrame(edges, ["src", "dst"])
 
-    # m = features.Mesh()
-    # meshes = subvolumes.flatMap(m.map).reduceByKey(m.reduce)
-    # nodes = adjcency.join(meshes)
+    nodes = adjcency.map(to_row).toDF(['id','adjcency'])
 
-    # nodes.saveAsPickleFile(self.files('nodes'))
-    nx.write_gpickle(self.g.g , self.files('graph'))
+    ss = features.SegmentSize()
+    sizes = subvolumes.flatMap(ss.map).reduceByKey(ss.reduce).map(to_row).toDF(['id','sizes'])
+    nodes = nodes.join(sizes, 'id')
+
+    m = features.Mesh()
+    meshes = subvolumes.flatMap(m.map).reduceByKey(m.reduce).map(to_row).toDF(['id','meshes'])
+    nodes = nodes.join(meshes, 'id')
+    self.nodes = nodes
+
+    # nodes.saveAsTable( tableName='nodes', mode='overwrite', path=self.files('nodes') )
+    #nx.write_gpickle(self.g.g , self.files('graph'))
     return
 
 
@@ -114,7 +125,7 @@ class Dataset:
       files = {
         'machine_labels': 's3://agglomeration/snemi3d_ds_test/machine_labels.h5',
         'human_labels': 's3://agglomeration/snemi3d_ds_test/human_labels.h5',
-        'affinities': 's3://agglomeration/snemi3d_ds_test/ffinities.h5',
+        'affinities': 's3://agglomeration/snemi3d_ds_test/affinities.h5',
         'adjcency':'s3://agglomeration/snemi3d_ds_test/adjcency',
         'sizes': 's3://agglomeration/snemi3d_ds_test/sizes',
         'meshes':'s3://agglomeration/snemi3d_ds_test/meshes',
@@ -125,14 +136,15 @@ class Dataset:
     else:
 
       files = {
-        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/ds_test/machine_labels.h5',
-        'human_labels': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/ds_test/human_labels.h5',
-        'affinities': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/ds_test/affinities.h5',
+        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/toy/machine_labels.h5',
+        'human_labels': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/toy/human_labels.h5',
+        'affinities': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/toy/affinities.h5',
         'adjcency':'./pyglomer/spark/tmp/adjcency',
         'sizes': './pyglomer/spark/tmp/sizes',
         'meshes':'./pyglomer/spark/tmp/meshes',
         'nodes': './pyglomer/spark/tmp/nodes',
-        'graph': './pyglomer/spark/tmp/graph'
+        'graph': './pyglomer/spark/tmp/graph',
+        'edges': './pyglomer/spark/tmp/edges'
       }
   
     return files[file]

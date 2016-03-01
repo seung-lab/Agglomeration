@@ -11,24 +11,32 @@ class Node(object):
   def __str__(self):
      return "ids:" + str(self.ids) + "\t size:"+ str(self.size)
 
-  def from_tuple(self, t ):
+  def from_tuple(self, values ):
 
-    key , values = t
-    self.ids = key
+    print len(values)
+    # key , values = t
+    # self.ids = key
     self.contact = values[0]
     self.size = values[1]
     self.mesh = values[2]
 
-  def Merge( otherNode ):
-    pass
+    return self
 
+  def to_tuple(self):
+    return ( self.ids, ( self.contact, self.size, self.mesh ))
+
+  def merge(self, other ):
+    self.ids = ( list(self.ids) + list( other.ids ) )
+    self.contact = self.contact.union(other.contact)
+    self.size += other.size
+    #TODO merge meshes
+    return self
 
 class Edge(object):
 
   def __init__(self):
     pass
 
-MergeTask = namedtuple('MergeTask', ['ids_to_merge', 'ids_neighbors' , 'nodes'])
 class Graph(object):
 
   def __init__(self, sc):
@@ -57,42 +65,50 @@ class Graph(object):
     return
 
   def add_edge(self, seg_1, seg_2 , weight=None):
-    # node_1 = Node(seg_1)
-    # node_2 = Node(seg_2)
+  
 
-    self.g.add_edge( seg_1, seg_2 )
-    heappush( self.pq_edges , (weight, seg_1, seg_2))
+    if weight:
+      self.g.add_edge( seg_1, seg_2, weight=weight )
+      heappush( self.pq_edges , (-weight, seg_1, seg_2)) # the negative in the weight is to convert from minpq to maxpq
+    else:
+      self.g.add_edge( seg_1, seg_2 )
+
 
   def join_nodes(self, seg_1, seg_2):
     neighbors_1 = self.g.neighbors(seg_1)
     neighbors_2 = self.g.neighbors(seg_2)
     neighbors = neighbors_1 + neighbors_2
+    neighbor_edges = []
 
     self.g.remove_node(seg_1)
     self.g.remove_node(seg_2)
 
     for neighbor in neighbors:
       self.g.add_edge( (seg_1, seg_2) , neighbor )
+      neighbor_edges.append( ((seg_1, seg_2) ,neighbor) )
 
-    return neighbors
+    return neighbor_edges
 
-  def merge_next_n(self, n , max_weight = 0.4):
-
-    to_merge = []
-    while len(self.pq_edges) and  len(to_merge) < n:
+  def merge_next_n(self, n , max_weight = 0.9):
+    """
+      
+    """
+    nodes_to_merge = []
+    edges_to_compute = []
+    while len(self.pq_edges) and  len(nodes_to_merge) < n:
       edge = heappop(self.pq_edges)
-      if edge[0] > max_weight:
-        return to_merge
+      if -edge[0] < max_weight:
+        return nodes_to_merge
       
       try:
         neighbors = self.join_nodes(edge[1], edge[2])
-      except Exception, e:
+      except  nx.NetworkXError, e:
         continue
 
-      mt = MergeTask((edge[1], edge[2]), neighbors, {})
-      to_merge.append( mt )
+      nodes_to_merge.append( (edge[1], edge[2]) )
+      edges_to_compute += neighbors
 
-    return to_merge
+    return nodes_to_merge, edges_to_compute
 
 
 
