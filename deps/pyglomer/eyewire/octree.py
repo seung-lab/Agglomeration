@@ -31,10 +31,6 @@ def _to_octree( volume, queue ):
 
 def get_subvolume_slice( subvolume_idx, shape ):
 
-  # z = 0  z = 1
-  #  0 1    4 5
-  #  2 3    6 7
-
   if subvolume_idx == 0:
     return slice(0, shape[0]/2), slice(0,shape[1]/2), slice(0,shape[2]/2)
   if subvolume_idx == 1:
@@ -51,7 +47,6 @@ def get_subvolume_slice( subvolume_idx, shape ):
     return slice(0, shape[0]/2), slice(shape[1]/2,shape[1]), slice(shape[2]/2, shape[2])
   if subvolume_idx == 7:
     return slice(shape[0]/2, shape[0]), slice(shape[1]/2,shape[1]), slice(shape[2]/2, shape[2])
-
 
 def more_than_one_id( volume ):
 

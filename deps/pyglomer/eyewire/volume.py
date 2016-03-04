@@ -1,6 +1,7 @@
 import numpy as np
 import os.path
 import json
+import copy
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -11,11 +12,15 @@ import base64
 import png
 from io import BytesIO
 import itertools
-import Image
+from PIL import Image
 
 from mysql import *
 
-import mesh
+from pyglomer.util.mesh import *
+from pyglomer.eyewire import Tile 
+from pyglomer.eyewire.Chunk import Chunk
+
+
 from collections import *
 
 class volume(object):
@@ -89,49 +94,22 @@ class volume(object):
   def getSubTile(self,x,y,z):
 
     url = 'http://cache.eyewire.org/volume/' + str(self.id) + '/chunk/0/' + str(x) + '/' + str(y) + '/' + str(z) + '/tile/xy/0:128'
-
     r = requests.get(url)
-    stack = None
-    for tile in r.json():
-        mine,encoded =  tile['data'].split(',') #if it is segmentation
-        decoded = base64.decodestring(encoded)
 
-        if mine == 'data:image/png;base64':
-            pngReader = png.Reader(bytes=decoded)
-            row_count, column_count, pngdata, meta = pngReader.asDirect()
-            bitdepth=meta['bitdepth']
-            plane_count=meta['planes']
+    stack = []
+    min_bound = Chunk.bound_to_array(r.json()[0]['bounds']['min'])
+    max_bound = Chunk.bound_to_array(r.json()[0]['bounds']['max'])
 
-            image_2d = np.vstack(itertools.imap(np.uint8, pngdata)) 
-            image_3d = np.reshape(image_2d,(row_count,column_count,plane_count))
-            img = image_3d.view(np.uint16)
-            
-            if stack == None:
-                stack = img[:,:,0]
-            else:
-                stack = np.dstack((stack,img[:,:,0]))
-            
-            #Record that this volumes is a segmentation volume    
-            self.isSegmentation = True
+    for tile in r.json():     
+      min_bound = np.minimum(Chunk.bound_to_array(tile['bounds']['min']), min_bound)
+      max_bound = np.maximum(Chunk.bound_to_array(tile['bounds']['max']), max_bound)
+      img = Tile.base64_to_array(tile['data'])
+      stack.append(img)
+      
 
-        elif mine == 'data:image/jpeg;base64':
-            #image = Image.open(decoded)
-            #image.save('test.jpg', image.format, quality = 100)
-            im = Image.open(BytesIO(decoded))
-            
-            if stack == None:
-                stack = np.array(im)
-            else:
-                stack = np.dstack((stack,np.array(im)))
-                
-            #Record that this volumes is a channel volume    
-            self.isSegmentation = False 
+    stack = np.dstack(stack)
+    return Chunk(stack, {'max':max_bound, 'min':min_bound} )
 
-        else:
-            raise Exception("Unkown format :"+mine)
-    
-    return stack
-  
   def getTileAPI(self):
       
     x0y0z0 = self.getSubTile(0,0,0)
@@ -139,23 +117,21 @@ class volume(object):
     x1y0z0 = self.getSubTile(1,0,0)
     x1y1z0 = self.getSubTile(1,1,0)
     
-    y0z0 = np.append(x0y0z0 ,x1y0z0 , axis=1)
-    y1z0 = np.append(x0y1z0, x1y1z0 , axis=1)
+    y0z0 = x0y0z0.merge_chunk(x1y0z0)
+    y1z0 = x0y1z0.merge_chunk(x1y1z0)
     
-    z0 = np.append(y0z0,y1z0, axis = 0)
+    z0 = y0z0.merge_chunk(y1z0)
     
     x0y0z1 = self.getSubTile(0,0,1)
     x0y1z1 = self.getSubTile(0,1,1)                
     x1y0z1 = self.getSubTile(1,0,1)
     x1y1z1 = self.getSubTile(1,1,1)
     
-    y0z1 = np.append(x0y0z1 ,x1y0z1 , axis=1)
-    y1z1 = np.append(x0y1z1 ,x1y1z1 , axis=1)
+    y0z1 = x0y0z1.merge_chunk(x1y0z1)
+    y1z1 = x0y1z1.merge_chunk(x1y1z1)
     
-    z1 = np.append(y0z1,y1z1, axis = 0)
-          
-    self.data = np.append( z0, z1 , axis=2)
-    
+    z1 = y0z1.merge_chunk(y1z1)
+    self.data = z0.merge_chunk(z1).stack
     return self.data
   
   def getTileLocal(self):
@@ -274,16 +250,14 @@ class volume(object):
       self.getTile()
     vol = self.data
       
-    adjacency = defaultdict(lambda : defaultdict(list))
+    adjacency = defaultdict(lambda : defaultdict(int))
 
 
     def union_seg(id_1, id_2, voxel_position):
       if id_1 == 0 or id_2 == 0 or id_1 == id_2:
         return 
 
-      adjacency[id_1][id_2].append(1)
-      adjacency[id_2][id_1].append(1)
-
+      adjacency[id_1][id_2] += 1
 
     for x in range(vol.shape[0]):
       for y in range(vol.shape[1]):
@@ -358,102 +332,8 @@ class volume(object):
 
  
 if __name__ == '__main__':
-  from itertools import product
-  def divide_volume( vol , chunk_size = 128 , overlap=0 ):
-    volumes = []
-    n_chunks =  np.maximum(np.array(vol.shape) / chunk_size, np.array([1,1,1]))
-    print vol.shape, n_chunks
-    for chunk in product(range(n_chunks[0]),range(n_chunks[1]),range(n_chunks[2])):
-
-      start = np.maximum(np.array(chunk) * chunk_size, np.array([0,0,0]))
-      end =  np.minimum((np.array(chunk) + 1)* chunk_size + overlap, vol.shape)
-
-      print chunk, start, end
-      volumes.append( vol[start[0]:end[0], start[1]:end[1], start[2]:end[2]] )
-
-    return volumes
-
-  def get_segments_size(vol):
-    segment_size = defaultdict(int)
-    for seg in vol.flatten():
-      segment_size[seg] += 1
-
-    return segment_size
-
-  def dsum(*dicts):
-      ret = defaultdict(int)
-      for d in dicts:
-          for k, v in d.items():
-              ret[k] += v
-      return dict(ret) 
-
-  def get_adjacency_segments(vol):
-    
-      
-    adjacency = defaultdict(lambda : defaultdict(list))
-    def union_seg(id_1, id_2, voxel_position):
-      if id_1 == 0 or id_2 == 0 or id_1 == id_2:
-        return 
-
-      adjacency[id_1][id_2].append(1)
-      adjacency[id_2][id_1].append(1)
-      return 
-
-
-    for x in range(vol.shape[0]):
-      for y in range(vol.shape[1]):
-        for z in range(vol.shape[2]): 
-
-          if x + 1 < vol.shape[0] and vol[x,y,z] != vol[x+1,y,z]:
-            union_seg(vol[x,y,z], vol[x+1,y,z], (x+0.5,y,z))
-
-          if y + 1 < vol.shape[1] and vol[x,y,z] != vol[x,y+1,z]:
-            union_seg(vol[x,y,z], vol[x,y+1,z], (x,y+0.5,z))
-
-          if z + 1 < vol.shape[2] and vol[x,y,z] != vol[x,y,z+1]:
-            union_seg(vol[x,y,z], vol[x,y,z+1], (x,y,z+0.5))
-
-    return adjacency
-
-  def dsum_adjacents(*dicts):
-      
-      ret = defaultdict(lambda : defaultdict(list))
-      for d in dicts:
-          for id_1, dict_2 in d.items():
-            for id_2, voxels in dict_2.items():
-              ret[id_1][id_2] += voxels
-
-      return ret
-
   def main():
-    vol = volume(116624 , True)
-    vol.getTile()
-    # vol.data = vol.data[48:50,2:10,2:4] 
-
-    # for z in range(2):
-    #   np.set_printoptions(threshold=np.nan)
-    #   print vol.data[:,:,z]
-
-
-    # volumes = divide_volume(vol.data)
-    # chunk_sizes = map( get_segments_size , volumes)
-    # segment_sizes = reduce( dsum , chunk_sizes )
-    # o_sizes = vol.get_segment_sizes()
-    # assert segment_sizes == o_sizes
-
-
-    volumes = divide_volume(vol.data, chunk_size=128, overlap=1)
-    print len(volumes)
-    chunks_adjacency = map( get_adjacency_segments, volumes)
-    adjacency = reduce( dsum_adjacents, chunks_adjacency)
-    o_adjacents =  vol.get_adjacency_segments()
-
-    from deepdiff import DeepDiff
-    print DeepDiff(adjacency, o_adjacents, ignore_order=True)
-
-
+    volume(74628, True).plotTile(125)
+    
   main()
 
-  # assert sum(vol.get_segment_sizes().values()) == 256**3
-  # print len()
-  #mesh.display_pair(116624, 480, 8, vol.get_adjacency_segments()[480][8])
