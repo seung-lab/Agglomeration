@@ -49,8 +49,8 @@ function setTask(task) {
 
     function loadTaskData(done) {
       waitForAll([
-        SegmentManager.loadEdge,
-        loadTiles
+        loadTiles,
+        SegmentManager.loadEdge
       ], done);
     }
 
@@ -174,9 +174,11 @@ var SegmentManager = {
     var _this = this;
 
     segments.children.map(function (segment) {
-      segment.material.uniforms.opacity.value = op;
-      segment.visible = _this._visible;
-      segment.material.transparent = _this.transparent;
+      if (segment.material && segment.material.uniforms) {
+        segment.material.uniforms.opacity.value = op;
+        segment.visible = _this._visible;
+        segment.material.transparent = _this.transparent;
+      }
     });
   },
   loadEdge: function(done) {
@@ -184,10 +186,8 @@ var SegmentManager = {
     SegmentManager.meshes = {};
 
     while( cube.getObjectByName("segments").children.length ){
-
       cube.getObjectByName("segments").remove(cube.getObjectByName("segments").children[0])
     }
-    console.log(cube.getObjectByName("segments").children);
 
     var edge = assignedTask.edges[current_edge]
     var seedsLoaded = 0;
@@ -203,7 +203,6 @@ var SegmentManager = {
       seedsLoaded++;
       if (seedsLoaded === 2) {
         done();
-        console.log(SegmentManager.meshes)
       }
     });
 
@@ -211,14 +210,12 @@ var SegmentManager = {
       seedsLoaded++;
       if (seedsLoaded === 2) {
         done();
-        console.log(SegmentManager.meshes)
       }
     });
 
   },
   displayMesh: function (segId) {
     segments.add(this.meshes[segId]);
-
   },
   addMesh: function (segId, mesh) {
     this.meshes[segId] = mesh;
@@ -244,7 +241,10 @@ var TileManager = {
     setTimeline(planes.z.position.z);
 
     segments.children.forEach(function (segment) {
+
+      if (segment.material && segment.material.uniforms) { //This is only available after finish loading the meshes
         segment.material.uniforms.nMin.value.z = planes.z.position.z;// - 1 / 512; // TODO this combo with three.js works, don't know why, seems to cause minor artifacts on snap to ortho
+      }
     });
 
     var curTile = this.currentTile();
@@ -688,6 +688,7 @@ var planes = {};
 // when the mesh is ready for display. If the mesh is selected or is a seed, it
 // displays the segment.
 function displayMeshForVolumeAndSegId(volume, segId, color , done) {
+  
   var doneWrapper = function () {
     if (done) {
       done();
@@ -699,76 +700,38 @@ function displayMeshForVolumeAndSegId(volume, segId, color , done) {
     SegmentManager.displayMesh(segId);
     doneWrapper();
   } else {
+
     var count = CHUNKS.length; // ensure that we have a response for each chunk
+    var shader = $.extend(true, { transparent: true  }, Shaders.idPacked);
+    {
+      var u = shader.uniforms;
+      u.color.value = new THREE.Color(color);
+      u.segid.value = segId;
+      u.mode.value = 0;
+      u.opacity.value = SegmentManager.opacity;
+      u.nMin.value = new THREE.Vector3(0, 0, planes.z.position.z);
+      u.nMax.value = new THREE.Vector3(1.0, 1.0, 1.0);
+    }
+    var material = new THREE.ShaderMaterial(shader);
+    material.transparent = false;
+    material.side = THREE.DoubleSide //All the normals computed by CTMLoader are inverted
+    var segmentMesh = new THREE.Object3D();
+    segmentMesh.segId = segId;
+    segmentMesh.name = "segId " + segId;
+    SegmentManager.addMesh(segId, segmentMesh);
+    SegmentManager.displayMesh(segId);
 
+    CHUNKS.forEach(function(chunk, idx) {       
+      var meshUrl = cache_domain + '/volume/' + volume + '/chunk/0/'+ chunk[0] + '/' + chunk[1] + '/' + chunk[2] + '/mesh/' + segId;
+      var ctm = new THREE.CTMLoader(false);
+      ctm.load( meshUrl , function(geometry) { 
 
-    var chunkBinaryData = [];
-    var totalLength = 0;
-    var lengths = [];
-
-    CHUNKS.forEach(function(chunk, idx) {
-      getDataForVolumeXYZAndSegId(volume, chunk, segId, function (data) {
+        var mesh = new THREE.Mesh( geometry , material);
+        segmentMesh.add(mesh);
         
-        count--;
-        if (data) {
-          chunkBinaryData[idx] = data;
-          totalLength += data.length;
-          lengths[idx] = data.length;
-        } else {
-          chunkBinaryData[idx] = undefined;
-          lengths[idx] = 0;
-        }
-        if (count === 0) {
-          console.log('done loading mesh');
-
-          var allData = new Float32Array(totalLength);
-
-          var currentLength = 0;
-
-          for (var i = 0; i < chunkBinaryData.length; i++) {
-            var chunk = chunkBinaryData[i];
-
-            if (chunk !== undefined) {
-              allData.set(chunk, currentLength);
-              currentLength += lengths[i];
-            }
-          };
-
-
-          var shader = $.extend(true, {
-            transparent: true
-          }, Shaders.idPacked);
-          {
-            var u = shader.uniforms;
-            u.color.value = new THREE.Color(color);
-            u.segid.value = segId;
-            u.mode.value = 0;
-            u.opacity.value = SegmentManager.opacity;
-            u.nMin.value = new THREE.Vector3(0, 0, planes.z.position.z);
-            u.nMax.value = new THREE.Vector3(1.0, 1.0, 1.0);
-          }
-
-          var material = new THREE.ShaderMaterial(shader);
-
-          material.transparent = false;
-
-          var segmentMesh = new THREE.Segment(
-            allData,
-            lengths,
-            material
-          );
-
-          segmentMesh.segId = segId;
-          segmentMesh.name = "segId " + segId;
-
-          SegmentManager.addMesh(segId, segmentMesh);
-          SegmentManager.displayMesh(segId);
-
-
-          doneWrapper();
-        }
-      });
+      }, { 'useWorker': true } );
     });
+    doneWrapper();
   }
 }
 
@@ -777,7 +740,7 @@ function displayMeshForVolumeAndSegId(volume, segId, color , done) {
 // loads the VOA mesh for the given segment in the given chunk from the EyeWire data server into a Three JS mesh.
 // passes the mesh to the done handler as a single argument or passes false if there is no mesh for the given segment in the chunk
 function getDataForVolumeXYZAndSegId(volume, chunk, segId, done) {
-  var meshUrl = 'http://testdata.eyewire.org/volume/' + volume + '/chunk/0/'+ chunk[0] + '/' + chunk[1] + '/' + chunk[2] + '/mesh/' + segId;
+  var meshUrl = cache_domain + '/volume/' + volume + '/chunk/0/'+ chunk[0] + '/' + chunk[1] + '/' + chunk[2] + '/mesh/' + segId;
 
   var req = new XMLHttpRequest();
   req.open("GET", meshUrl, true);

@@ -10,14 +10,12 @@ def getSegmentMesh(segmentation_volume, chunk_x, chunk_y, chunk_z, segment_id):
 			for each axis """
 
 	url = "http://data.eyewire.org/volume/{0}/chunk/0/{1}/{2}/{3}/mesh/{4}".format(segmentation_volume, chunk_x, chunk_y, chunk_z, segment_id)
-
 	return processVertex(url)
 
 
 def getOverviewMesh(cell_id, mip_level, chunk_x, chunk_y, chunk_z):
 	
 	url = "http://data.eyewire.org/cell/{0}/chunk/{1}/{2}/{3}/{4}/mesh".format(cell_id * 10 + 1, mip_level , chunk_x , chunk_y, chunk_z)
-
 	return processVertex(url)
 
 def processVertex( url ):

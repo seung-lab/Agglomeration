@@ -2,22 +2,25 @@ import tornado.ioloop
 import tornado.web
 from pyglomer.eyewire.volume import *
 from pyglomer.eyewire import Tile
+from  pyglomer.util import mesh
+import pyglomer.eyewire.api
 
 from tornado.escape import json_encode
+
+import requests
 
 
 reponse_cache = dict()
 segmentation = None
 channel = None
+meshes = dict()
 
-def get_subtile(volume ,x, y, z):
+def get_subtile(volume ,x, y, z, overlap = 0 ):
 
-  def dim2slice(dim):
-    return  slice(dim*128, (dim+1)*128)
+  def dim2slice(dim, overlap = 0 ,shape=256):
+    return  slice(dim*128, min((dim+1)*128+ overlap, shape))
 
-  return volume[dim2slice(x), dim2slice(y), dim2slice(z)]
-
-
+  return volume[dim2slice(x,overlap), dim2slice(y,overlap), dim2slice(z, overlap)]
 
 def return_json(self, obj ):
 
@@ -47,9 +50,49 @@ class TileHandler(tornado.web.RequestHandler):
 
     return_json(self, stack)
 
+class MeshHandler(tornado.web.RequestHandler):
+
+  def get(self, volume_id, mip, x, y, z, segment_id):
+    volume_id, mip, x, y, z, segment_id = int(volume_id), int(mip), int(x), int(y), int(z), int(segment_id)
+
+    if (x,y,z,segment_id) not in meshes:
+      chunk = get_subtile(segmentation, x, y, z, overlap=1)
+      vertices, triangles = mesh.marche_cubes([segment_id], chunk)
+      
+      if len(vertices):
+        vertices = vertices + np.array([x*256, y*256, z*256])
+        vertices = vertices.astype(float) / (255.0 * 2.0) 
+      
+      ctmfile = mesh.vertices_triangles_to_openctm( vertices, triangles )
+      meshes[(x,y,z,segment_id)] = ctmfile
+
+    ctmfile = meshes[(x,y,z,segment_id)]
+    if len(ctmfile) == 0:
+      self.clear()
+      self.set_header('Access-Control-Expose-Headers','Content-Length')
+      self.set_header('Content-Length', 0)
+      self.set_header('Access-Control-Allow-Origin', '*')
+      self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS') 
+      self.set_status(204)
+      self.finish()
+      return
+
+    self.set_header('Access-Control-Expose-Headers','Content-Length')
+    self.set_header('Content-type', 'text/plain;')
+    self.set_header('Content-Length', len(ctmfile))
+    self.set_header('Access-Control-Allow-Origin', '*')
+    self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS') 
+    self.write(ctmfile)
+    self.finish()
+    return
+
+
 class EdgesHandler(tornado.web.RequestHandler):
   def get(self, volume_id):
     
+    return_json(self, [ [4738, 2705] ])
+    return
+
     if volume_id not in reponse_cache:
       vol = volume(volume_id , True)
       vol.getTile()
@@ -95,7 +138,8 @@ def make_app():
       (r'', MainHandler),
       (r'/tasks', TaskHandler),
       (r'/volume/(\d+)/edges$', EdgesHandler),
-      (r'/volume/(\d+)/chunk/(\d)/(\d)/(\d)/(\d)/tile/xy/(\d+):(\d+$)', TileHandler)
+      (r'/volume/(\d+)/chunk/(\d)/(\d)/(\d)/(\d)/tile/xy/(\d+):(\d+$)', TileHandler),
+      (r'/volume/(\d+)/chunk/(\d)/(\d)/(\d)/(\d)/mesh/(\d+$)', MeshHandler)
     ])
 
 if __name__ == '__main__':

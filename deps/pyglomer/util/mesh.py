@@ -9,6 +9,12 @@ import itertools
 from tvtk.api import tvtk
 from mayavi import mlab
 
+#To export openctm meshes
+from ctypes import *
+from openctm import *
+from StringIO import StringIO
+import tempfile
+    
 def marche_cubes( ids , volume):
   """ Given a segmentation volume and set of ids, 
       it first computes a boolean volume, where every voxel 
@@ -62,6 +68,10 @@ def get_adjacent( vertices, triangles ):
   return adj
 
 def get_vertices_triangles( adj ):
+  """
+    Converts from the adjacency representation to the
+    vertices triangles one.
+  """
 
   vertices = dict() 
   vertex_counter = 0
@@ -257,7 +267,7 @@ def display_marching_cubes(vertices, triangles, color=(0, 0, 0), opacity=1.0):
     surf = mlab.pipeline.surface(mesh, opacity=opacity)
     mlab.pipeline.surface(mlab.pipeline.extract_edges(surf), color=color)
   
-  mlab.show()
+  # mlab.show()
   return
 
 def display_pair( volume_id , id_1, id_2, matches):
@@ -306,7 +316,54 @@ def display_pair( volume_id , id_1, id_2, matches):
   mlab.show()
   return
 
+def vertices_triangles_to_openctm( vertices, triangles ):
+
+
+  def make_blob(verts, T):
+    """Convert a list of tuples of numbers into a ctypes pointer-to-array"""
+    size = len(verts) * len(verts[0])
+    Blob = T * size
+    floats = [c for v in verts for c in v]
+    blob = Blob(*floats)
+    return cast(blob, POINTER(T))
+
+  if len(vertices) == 0 or len(triangles) == 0:
+    return ''
+
+  pVertices = make_blob(vertices, c_float)
+  pTriangles = make_blob(triangles, c_uint)
+  pNormals = POINTER(c_float)()
+  ctm = ctmNewContext(CTM_EXPORT)
+  ctmDefineMesh(ctm, pVertices, len(vertices), pTriangles, len(triangles), pNormals)
+
+  #Having to use a tmp file, because StringIO can't be easly pass
+  #Because the biding is expecting an string
+  #It is also possible to pass a c++ stream, but I don't know
+  #how to interface that with python
+  tf = tempfile.NamedTemporaryFile()
+  ctmSave(ctm, tf.name)
+  ctmFreeContext(ctm)
+  s = tf.read()
+  tf.close()
+  return s
+
+
 if __name__ == '__main__':
-  pass
+
+  from pyglomer.eyewire.volume import *
+  
+  for x in range(2):
+    for y in range(2):
+      for z in range(2):
+        chunk = volume(74628, True).getSubTile(x,y,z)
+        vertices, triangles = marche_cubes([4738], chunk.stack)
+
+        if len(vertices):
+          print x,y,z,  np.amax(vertices) ,  np.amin(vertices)
+          vertices = vertices + np.array([x*256, y*256, z*256])
+
+          vertices = vertices.astype(float) / 255.0
+          display_marching_cubes(vertices, triangles)
 
 
+  mlab.show()
