@@ -40,35 +40,38 @@ class ContactRegion(VoxelFeature):
   def map(vol):
     shape = vol.end - vol.start
 
-    def union_seg(id_1, id_2, voxel_position):
+    def union_seg(id_1, id_2, voxel_position, axis):
       if id_1 == 0 or id_2 == 0 or id_1 == id_2:
         return 
+      
+      affinity = tuple( [axis] + list(np.floor(np.asarray(voxel_position)).astype(int))) 
       position = tuple(map(operator.add, voxel_position, vol.start))
-      adjacency[(id_1,)][(id_2,)].append(position)
-      adjacency[(id_2,)][(id_1,)].append(position)
+
+      if id_1 > id_2:
+        id_1 , id_2 = id_2, id_1
+
+      id_1 = int(id_1); id_2 = int(id_2)
+      adjacency[(id_1, id_2)].append( (position, vol.affinities[affinity] ) )
       return 
       
-    adjacency = defaultdict(lambda : defaultdict(list))
+    adjacency = defaultdict(list)
     for x in range(shape[0]):
       for y in range(shape[1]):
         for z in range(shape[2]): 
 
           if x + 1 < shape[0] and vol.machine_labels[x,y,z] != vol.machine_labels[x+1,y,z]:
-            union_seg(vol.machine_labels[x,y,z], vol.machine_labels[x+1,y,z], (x+0.5,y,z))
+            union_seg(vol.machine_labels[x,y,z], vol.machine_labels[x+1,y,z], (x+0.5,y,z), 0)
           if y + 1 < shape[1] and vol.machine_labels[x,y,z] != vol.machine_labels[x,y+1,z]:
-            union_seg(vol.machine_labels[x,y,z], vol.machine_labels[x,y+1,z], (x,y+0.5,z))
+            union_seg(vol.machine_labels[x,y,z], vol.machine_labels[x,y+1,z], (x,y+0.5,z), 1)
           if z + 1 < shape[2] and vol.machine_labels[x,y,z] != vol.machine_labels[x,y,z+1]:
-            union_seg(vol.machine_labels[x,y,z], vol.machine_labels[x,y,z+1], (x,y,z+0.5))
+            union_seg(vol.machine_labels[x,y,z], vol.machine_labels[x,y,z+1], (x,y,z+0.5), 2)
 
     return adjacency.iteritems()
 
   @staticmethod
-  def reduce(dict_1, dict_2):
+  def reduce(voxels_1, voxels_2):
 
-    dict_1 = defaultdict(list, dict_1)
-    for seg_id, voxels in dict_2.iteritems():
-        dict_1[seg_id] += voxels
-    return dict_1
+    return voxels_1 + voxels_2
 
 class Mesh(VoxelFeature):
 

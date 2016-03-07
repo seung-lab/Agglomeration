@@ -1,4 +1,3 @@
-from pyglomer.spark.graph import *
 from pyglomer.spark import features
 from pyspark.sql import Row
 
@@ -16,12 +15,7 @@ class Dataset:
     """
     self.sc = sc
     self.sqlContext = sqlContext
-    self.g = Graph(sc)
     self.nodes =  None
-
-  def graph(self):
-    return self.g
-
 
   def _import_hdf5(self, chunk_size=50, overlap=1 ):
 
@@ -95,21 +89,18 @@ class Dataset:
     cr = features.ContactRegion()
     adjcency = subvolumes.flatMap(cr.map).reduceByKey(cr.reduce)
     edges = []
-    for seg_1, neighbors in adjcency.toLocalIterator():
-      for seg_2 , voxels in neighbors.iteritems():
-        edges.append( (list(map(int,seg_1)), list(map(int,seg_1))) )
+    for edge, voxels in adjcency.toLocalIterator():
+        mean = float( np.mean([pair[1] for pair in voxels]) )
+        edges.append( ( [edge[0]], [edge[1]], mean) )
 
-    self.edges = self.sqlContext.createDataFrame(edges, ["src", "dst"])
 
-    nodes = adjcency.map(to_row).toDF(['id','adjcency'])
-
+    self.edges = self.sqlContext.createDataFrame(edges, ['src','dst','mean_affinity'])
     ss = features.SegmentSize()
     sizes = subvolumes.flatMap(ss.map).reduceByKey(ss.reduce).map(to_row).toDF(['id','sizes'])
-    nodes = nodes.join(sizes, 'id')
 
     m = features.Mesh()
     meshes = subvolumes.flatMap(m.map).reduceByKey(m.reduce).map(to_row).toDF(['id','meshes'])
-    nodes = nodes.join(meshes, 'id')
+    nodes = sizes.join(meshes, 'id')
     self.nodes = nodes
 
     # nodes.saveAsTable( tableName='nodes', mode='overwrite', path=self.files('nodes') )
