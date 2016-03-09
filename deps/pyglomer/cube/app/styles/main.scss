@@ -1,0 +1,13 @@
+html {
+  height: 100%;
+}
+body {
+  min-height: 100%;
+  overflow: hidden;
+}
+
+.fullscreen {
+  position: absolute;
+  top: 0px; 
+  left: 0px; 
+}

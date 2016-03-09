@@ -27,7 +27,10 @@ def marche_cubes( ids , volume):
 
   try:
     vertices, triangles =  measure.marching_cubes(volume, 0.5)
-  except:
+    triangles = measure.correct_mesh_orientation(volume, vertices, triangles,  gradient_direction='ascent')
+
+  except Exception, e:
+    print e
     return np.array([]), np.array([])
 
   #We rather work for integers that with floats, there are only .5 values

@@ -55,6 +55,16 @@ class MeshHandler(tornado.web.RequestHandler):
   def get(self, volume_id, mip, x, y, z, segment_id):
     volume_id, mip, x, y, z, segment_id = int(volume_id), int(mip), int(x), int(y), int(z), int(segment_id)
 
+    url = "http://data.eyewire.org/volume/{0}/chunk/0/{1}/{2}/{3}/mesh/{4}".format(volume_id, x, y, z, segment_id)
+    response = requests.get(url)
+    self.set_header('Access-Control-Expose-Headers','Content-Length')
+    self.set_header('Content-type', 'text/plain;')
+    self.set_header('Content-Length', len(ctmfile))
+    self.set_header('Access-Control-Allow-Origin', '*')
+    self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS') 
+    self.write(ctmfile)
+    self.finish()
+
     if (x,y,z,segment_id) not in meshes:
       chunk = get_subtile(segmentation, x, y, z, overlap=1)
       vertices, triangles = mesh.marche_cubes([segment_id], chunk)
