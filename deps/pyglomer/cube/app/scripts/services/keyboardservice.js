@@ -131,7 +131,7 @@ angular.module('cubeApp')
 
     var debugText;
 
-    function pollInput() {
+    srv.pollInput = function() {
       pressed_keys = pressed_keys_buffer;
       pressed_keys_buffer = [];
       held_keys = held_keys_buffer.slice(0);

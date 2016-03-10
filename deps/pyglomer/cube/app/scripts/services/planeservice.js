@@ -16,8 +16,8 @@ angular.module('cubeApp')
     };
 
     srv.getOpacity = function() {
-      return srv.opactiy
-    }
+      return srv.opactiy;
+    };
 
     srv.setOpacity = function(opactiy) {
       srv.opactiy = opactiy;
@@ -26,7 +26,7 @@ angular.module('cubeApp')
       // planes.z.material.materials.map(function (material) {
       //   material.opacity = o;
       // });
-    }
+    };
 
     return srv;
 

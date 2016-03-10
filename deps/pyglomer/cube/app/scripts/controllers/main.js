@@ -10,7 +10,7 @@
 angular.module('cubeApp')
   .controller('MainCtrl', function (sceneService, keyboardService,
     tileService, taskService, overlayService, planeService, 
-    controlService, $window) {
+    meshService, controlService, $window) {
 
     sceneService.init();
     keyboardService.init();
@@ -25,11 +25,11 @@ angular.module('cubeApp')
     $window.addEventListener('resize', resize );
     resize();
 
-
-    taskService.init();
     taskService.getTask(function(task){
       tileService.init(task.channel_id, task.segmentation_id);
       sceneService.cube.add(tileService.planesHolder);
+      sceneService.cube.add(meshService.meshes);
+      displayNextEdge();
     });
 
 
@@ -59,58 +59,85 @@ angular.module('cubeApp')
       }
     }
 
-
-
-    function handleSnapBegin () {
-      console.log('snapBegin');
-    }
-
-    function handleSnapComplete () {
-
-      // planeService.opacity = 1;
-
-      // setTimeline(planes.z.position.z);
-
-      // tileService.opacity = 0;
-    }
-
-    function handleUnSnap() {
-      var o = {t: 0};
-      new TWEEN.Tween(o).to({t: 1}, 250).onUpdate(function () {
-        var p = o.t;
-        
-        var camera = sceneService.camera
-        camera.fov = Math.max(camera.fov, camera.orthoFov * (1 - p) + camera.perspFov * p);
-
-        tileService.opacity = p;// * (isZoomed ? 0.8 : 1.0);
-
-        // PlaneManager.opacity = Math.max(1 - p, 0.8));
-
-        // PlaneManager.opacity = (1-p) * (0.2) + 0.8;
-
-        // needsRender = true;
-      }).start();
-    }
-
-    // controlService.addEventListener('change', handleChange);
-    // controlService.addEventListener('snapBegin', handleSnapBegin);
-    // controlService.addEventListener('snapComplete', handleSnapComplete);
-    // controlService.addEventListener('unSnap', handleUnSnap);
-
-    function animate() {
-        // pollInput();
-        // handleInput();
-        // console.log('animating')
-        TWEEN.update();
-        controlService.update();
-
-        if (true) {
-          // srv.needsRender = false;
-          sceneService.render();
-        }
-
-        requestAnimationFrame(animate); // TODO where should this go in the function (beginning, end?)
+    function handleInput() {
+      if (keyboardService.key('x', keyboardService.PRESSED)) {
+        controlService.animateToPositionAndZoom(new THREE.Vector3(0, 0, 0), 1, true);
       }
-    requestAnimationFrame(animate);
+
+      if (keyboardService.key('z', keyboardService.HELD)) {
+
+          var point = controlService.getPositionOnTileFromMouse(mouse);
+
+          if (point) {
+            controlService.animateToPositionAndZoom(point, 4);
+          }
+      }
+      if (keyboardService.key('shift', keyboardService.PRESSED)) {
+
+        tileService.highlight_segments = false
+        tileService.draw();
+        needsRender = true;
+      }
+      if (keyboardService.key('shift', keyboardService.RELEASED)) {
+
+        tileService.highlight_segments = true
+        tileService.draw();
+        needsRender = true;
+      }
+
+      if (keyboardService.key('y', keyboardService.PRESSED) 
+        || keyboardService.key('n', keyboardService.PRESSED) 
+        || keyboardService.key('m', keyboardService.PRESSED)) {
+        displayNextEdge();
+        tileService.draw();
+        needsRender = true;
+      }
+
+      var td = 0;
+
+      if (keyboardService.key('w', keyboardService.HELD)) {
+        td += 1;
+      }
+
+      if (keyboardService.key('s', keyboardService.HELD)) {
+        td -= 1;
+      }
+
+      if (keyboardService.key('r', keyboardService.PRESSED)) {
+        needsRender = true;
+      }
+
+      tileDelta(td);
+    }
+
+    function displayNextEdge () {
+
+      //Hide all the current visible meshes
+
+      while( meshService.meshes.children.length ) {
+        meshService.meshes.remove(meshService.meshes.children[0]);
+      }
+
+      taskService.getNextEdge(function(edge){
+        meshService.displayEdge(taskService.task.segmentation_id, edge);
+      });
+    }
+
+    var needsRender = true
+    function animate() {
+      keyboardService.pollInput();
+      handleInput();
+
+      TWEEN.update();
+      controlService.update();
+
+      if (needsRender) {
+        // srv.needsRender = false;
+        sceneService.render();
+      }
+
+      requestAnimationFrame(animate); // TODO where should this go in the function (beginning, end?)
+    }
+    animate();
 
   });

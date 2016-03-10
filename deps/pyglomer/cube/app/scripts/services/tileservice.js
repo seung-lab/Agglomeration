@@ -8,7 +8,7 @@
  * Service in the cubeApp.
  */
 angular.module('cubeApp')
-  .service('tileService', function (overlayService) {
+  .service('tileService', function (overlayService, meshService, taskService, $http) {
     // AngularJS will instantiate a singleton by calling "new" on this function
 
     // Tile represents a single 2d 256x256 slice
@@ -32,11 +32,11 @@ angular.module('cubeApp')
       count: 0,
       opacity: 1.0,
       tiles: {},
-      segmentation: {},
-      channel: {},
       currentTileIdx: null,
       currentTileFloat: null,
-      planes: {}
+      planes: {},  
+      server: 'http://localhost:8888',
+      highlight_segments: true
     };
 
     srv.init = function(channel_id, segmentation_id) {
@@ -45,11 +45,12 @@ angular.module('cubeApp')
 
       srv.create_canvas();
       srv.create_planes();
+      loadTilesForAxis('xy', function() {});
     };
 
     srv.currentTile = function () {
       //TODO modfile tiles to use channels , segmentation
-      return srv.tiles[srv.currentTileIdx]
+      return srv.tiles[srv.currentTileIdx];
     };
 
     srv.setCurrentTile =  function (i, hard) {
@@ -58,43 +59,28 @@ angular.module('cubeApp')
       if (srv.currentTileFloat === undefined || hard) {
         srv.currentTileFloat = i;
       }
+
+      if (!('z' in srv.planes)) {
+        return;
+      }
       
       srv.planes.z.position.z = i / srv.CUBE_SIZE;
       overlayService.setTimeline(srv.planes.z.position.z);
 
-      //TODO fix this
-      // segments.children.forEach(function (segment) {
-      //   if (segment.material && segment.material.uniforms) { //This is only available after finish loading the meshes
-      //     segment.material.uniforms.nMin.value.z = planes.z.position.z;// - 1 / 512; // TODO this combo with three.js works, don't know why, seems to cause minor artifacts on snap to ortho
-      //   }
-      // });
+      meshService.meshes.children.forEach(function (segment) {
+        // - 1 / 512; // TODO this combo with three.js works, don't know why, seems to cause minor artifacts on snap to ortho
+        segment.children.forEach(function (mesh) {
+          mesh.material.uniforms.nMin.value.z = srv.planes.z.position.z;
+        });
+      });
 
-      // var curTile = srv.currentTile();
-      // if (curTile) { // TODO this is only for the intiial loading check. Move that somewhere else?
-      //   curTile.draw();
-      // }
-      
-      //TODO fix this
-      // needsRender = true;
-      // sceneService.pleaseRender();
+      srv.draw();
     };
 
 
-    function loadTilesForAxis(axis, startingTile, callback) {
+    function loadTilesForAxis(axis, callback) {
       for (var i = 0; i < srv.CUBE_SIZE; i++) {
-        TileManager.tiles[i] = new Tile(i);
-      }
-
-      for (var i = 0; i < 4; i++) {
-        var chunk = srv.CHUNKS[i];
-        getStartingTiles(startingTile, 1, srv.channel_id, chunk, axis, 'channel', callback);
-        getStartingTiles(startingTile, 1, srv.segmentation_id, chunk, axis, 'segmentation', callback);
-      }
-
-      for (var i = 0; i < 4; i++) {
-        var chunk = srv.CHUNKS[i];
-        getStartingTiles(startingTile, 32, srv.channel_id, chunk, axis, 'channel', callback);
-        getStartingTiles(startingTile, 32, srv.segmentation_id, chunk, axis, 'segmentation', callback);
+        srv.tiles[i] = { segmentation: {}, channel: {} , count:0};
       }
 
       srv.CHUNKS.forEach(function(chunk) {
@@ -103,33 +89,30 @@ angular.module('cubeApp')
       });
     }
 
-    // get tiles around the starting tile
-    function getStartingTiles(realTileNum, bundleSize, volId, chunk, axis, type, callback) {
-      var chunkTile = realTileNum % CHUNK_SIZE;
-      var chunkZ = Math.floor(realTileNum / CHUNK_SIZE);
-      var start = clamp(chunkTile - Math.floor(bundleSize / 2), 0, CHUNK_SIZE - bundleSize);
-      var range = [start, start + bundleSize];
-      var url = srv.server + "/volume/" + volId + "/chunk/0/" + chunk[0] + "/" + chunk[1] + "/" + chunkZ + "/tile/" + axis + "/" + range[0] + ":" + range[1];
-
-      $.get(url).done(function (tilesRes) {
-        for (var trIdx = 0; trIdx < tilesRes.length; trIdx++) {
-          var realTileNum = chunkZ * CHUNK_SIZE + range[0] + trIdx;
-
-          srv.tiles[realTileNum].load(tilesRes[trIdx].data, type, chunk[0], chunk[1], callback);
-        }
-      });
-    }
 
     // load all the tiles for the given axis in the given chunk of the given type
     // ex. load all the segmentation tiles in chunk (0, 0, 0) for the 'z' axis (x/y plane)
     function getImagesForVolXY(volId, chunk, axis, type, callback) {
-      var url = srv.server + "/volume/" + volId + "/chunk/0/" + chunk[0] + "/" + chunk[1] + "/" + chunk[2] + "/tile/" + axis + "/" + 0 + ":" + CHUNK_SIZE;
-      $.get(url).done(function (tilesRes) {
-        for (var trIdx = 0; trIdx < tilesRes.length; trIdx++) {
-          var realTileNum = chunk[2] * CHUNK_SIZE + trIdx;
+      var url = srv.server + "/volume/" + volId + "/chunk/0/" +
+      chunk[0] + "/" + chunk[1] + "/" + chunk[2] + "/tile/" +
+      axis + "/" + 0 + ":" + srv.CHUNK_SIZE;
 
-          TileManager.tiles[realTileNum].load(tilesRes[trIdx].data, type, chunk[0], chunk[1], callback);
-        }
+      $http({
+        method: 'GET',
+        url: url,
+      }).then(function successCallback(response) {
+          // this callback will be called asynchronously
+          // when the response is available
+          var tilesRes = response.data;
+          for (var trIdx = 0; trIdx < tilesRes.length; trIdx++) {
+            var realTileNum = chunk[2] * srv.CHUNK_SIZE + trIdx;
+            srv.load(realTileNum , tilesRes[trIdx].data, type, chunk[0], chunk[1], callback);
+          }
+
+        }, function errorCallback(response) {
+          // called asynchronously if an error occurs
+          // or server returns response with an error status.
+          console.error(response);
       });
     }
 
@@ -146,7 +129,7 @@ angular.module('cubeApp')
       srv.stagingCanvas = document.createElement('canvas');
       srv.stagingCanvas.height = srv.stagingCanvas.width = srv.CUBE_SIZE;
       srv.stagingContext = srv.stagingCanvas.getContext('2d');
-    }
+    };
 
     srv.create_planes = function() {
       
@@ -196,13 +179,9 @@ angular.module('cubeApp')
       srv.planes.z.position.y = 0.5;
 
       srv.planesHolder = new THREE.Object3D();
-      srv.planesHolder.position.set(-.5, -.5, -.5);
+      srv.planesHolder.position.set(-0.5, -0.5, -0.5);
       srv.planesHolder.add(srv.planes.z);
     };
-
-    srv.isComplete = function() {
-      return srv.count === 8;
-    }
 
     function convertBase64ImgToImage(b64String, callback) {
       var imageBuffer = new Image();
@@ -215,62 +194,78 @@ angular.module('cubeApp')
     // loads all the segmentation and channel images for this tile
     // and runs the callback when complete
     // tiles are queued for loading to throttle the rate.
-    srv.load = function (data, type, x, y, callback) {
+    srv.load = function (tile_idx , data, type, x, y, callback) {
 
       var chunk = y * 2 + x;
 
-      if (srv[type][chunk]) {
+      if (srv.tiles[tile_idx][type][chunk]) {
         return; // chunk already loaded or in queue
       }
 
-      srv[type][chunk] = true; // mark it as being in progress
+      srv.tiles[tile_idx][type][chunk] = true; // mark it as being in progress
 
-      tileLoadingQueue.push(function () {
-        convertBase64ImgToImage(data, function (image) {
-          srv[type][chunk] = image;
-          srv.count++;
+      convertBase64ImgToImage(data, function (image) {
+        srv.tiles[tile_idx][type][chunk] = image;
+        srv.tiles[tile_idx].count++;
 
-          if (srv.isComplete()) { // all tiles have been loaded
-            callback(srv);
+          if (srv.isComplete(tile_idx)) { // all tiles have been loaded
+            callback(srv.tiles[tile_idx]);
           }
-        });
       });
     };
 
+    srv.isComplete = function(tile_idx) {
+      return srv.tiles[tile_idx].count === 8;
+    };
+
     srv.draw = function () {
-      if (!this.isComplete()) {
+
+      if (!this.isComplete(srv.currentTileIdx)) {
         console.log('not complete');
         return;
       }
+
+      var tile = srv.currentTile();
 
       for (var i = 0; i < 4; i++) {
         var x = i % 2;
         var y = i < 2 ? 0 : 1;
 
-        //TODO This are define in scene
-        // stagingContext.drawImage(this.channel[i], x * CHUNK_SIZE, y * CHUNK_SIZE);
-        // segContext.drawImage(this.segmentation[i], x * CHUNK_SIZE, y * CHUNK_SIZE);
+        srv.stagingContext.drawImage(tile.channel[i], x * srv.CHUNK_SIZE, y * srv.CHUNK_SIZE);
+        srv.segContext.drawImage(tile.segmentation[i], x * srv.CHUNK_SIZE, y * srv.CHUNK_SIZE);
       }
-
-      if (highlight_segments) { 
-        highlight();
-      }
-
-      //TODO acess planes from here
-      // planes.z.material.materials[5].map.needsUpdate = true; //What are the other materials for?
+      highlight();
+      
+      srv.planes.z.material.materials[5].map.needsUpdate = true; //What are the other materials for?
     };
 
   
     // highlight the seeds and selected segments in the tile 2d view
     // returns a new image buffer
     function highlight() {
+
+      if (!srv.highlight_segments) { 
+        return;
+      }
+
+
       // copy is a working buffer to add highlights without modifying the original tile data
-      var segPixels = segContext.getImageData(0, 0, srv.CUBE_SIZE, srv.CUBE_SIZE).data;
-      var channelImageData = stagingContext.getImageData(0, 0, srv.CUBE_SIZE, srv.CUBE_SIZE);
+      var segPixels = srv.segContext.getImageData(0, 0, srv.CUBE_SIZE, srv.CUBE_SIZE).data;
+      var channelImageData = srv.stagingContext.getImageData(0, 0, srv.CUBE_SIZE, srv.CUBE_SIZE);
       var channelPixels = channelImageData.data;
 
-      var selectedColors = SegmentManager.selectedColors;
-      var seedColors = SegmentManager.seedColors;
+      var segment_ids = [];
+      var colors = [];
+
+      //A segment is composed of many meshes(one per chunk)
+      meshService.meshes.children.forEach(function (segment) {
+        if (segment.children.length) {
+          colors.push(segment.children[0].material.uniforms.color.value);
+          segment_ids.push(segment.segment_id);
+        }
+      });
+
+
 
       // get the color for a pixel in the given buffer
       function getColor(buffer, startIndex) {
@@ -278,8 +273,8 @@ angular.module('cubeApp')
       }
 
       // highlights the pixel with the given rgb and alpha
-      function setColorAlpha(buffer, startIndex, rgb, alpha) {
-        var overlayColor = [rgb[0] * alpha, rgb[1] * alpha, rgb[2] * alpha];
+      function setColorAlpha(buffer, startIndex, color, alpha) {
+        var overlayColor = [color.r * alpha* 255, color.g * alpha * 255,color.b * alpha* 255];
 
         for (var i = 0; i < 3; i++) {
           buffer[startIndex + i] = overlayColor[i] + buffer[startIndex + i] * (1 - alpha);
@@ -291,28 +286,42 @@ angular.module('cubeApp')
         var rgb = getColor(segPixels, j);
 
         // is the current pixel part of selected segment? if so highlight it
-        for (var k = 0; k < selectedColors.length; k += 1) {
-          if (rgbEqual(segIdToRGB(SegmentManager.selected[k]), rgb)) {
-            setColorAlpha(channelPixels, j, selectedColors[k], 0.5);
+        for (var k = 0; k < colors.length; k += 1) {
+          if (rgbEqual(segIdToRGB(segment_ids[k]), rgb)) {
+            setColorAlpha(channelPixels, j, colors[k], 0.25);
           }
         }
       }
 
-      stagingContext.putImageData(channelImageData, 0, 0);
+      srv.stagingContext.putImageData(channelImageData, 0, 0);
 
       // return copy;
     }
 
     // returns the the segment id located at the given x y position of this tile
     srv.segIdForPosition = function(x, y) {
-      var segPixels = segContext.getImageData(0, 0, srv.CUBE_SIZE, srv.CUBE_SIZE).data;
+      var segPixels = srv.segContext.getImageData(0, 0, srv.CUBE_SIZE, srv.CUBE_SIZE).data;
       // var data = //this.segmentation[chunkY * 2 + chunkX].data;
       var start = (y * srv.CUBE_SIZE + x) * 4;
       var rgb = [segPixels[start], segPixels[start+1], segPixels[start+2]];
       return rgbToSegId(rgb);
     };
 
+    function rgbEqual(rgb1, rgb2) {
+      return rgb1[0] === rgb2[0] && rgb1[1] === rgb2[1] && rgb1[2] === rgb2[2];
+    }
 
+    function rgbToSegId(rgb) {
+      return rgb[0] + rgb[1] * 256 + rgb[2] * 256 * 256;
+    }
+
+    function segIdToRGB(segId) {
+      var blue = Math.floor(segId / (256 * 256));
+      var green = Math.floor((segId % (256 * 256)) / 256);
+      var red = segId % 256;
+
+      return [red, green, blue];
+    }
 
     return srv;
   });

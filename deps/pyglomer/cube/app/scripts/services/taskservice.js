@@ -12,12 +12,9 @@ angular.module('cubeApp')
     // AngularJS will instantiate a singleton by calling "new" on this function
 
     var srv = {
-      server: 'http://localhost:8888'
+      server: 'http://localhost:8888',
+      task: null
     };
-
-    srv.init = function(callback) {
-    };
-
 
     srv.getTask = function( callback ) {
 
@@ -25,15 +22,28 @@ angular.module('cubeApp')
         method: 'GET',
         url: srv.server+'/tasks',
       }).then(function successCallback(response) {
+          srv.task = response.data;
+          callback(response.data);
+
+        }, function errorCallback(response) {
+          console.error(response);
+      });
+    };
+
+    srv.getNextEdge = function(callback) {
+
+      $http({
+        method: 'GET',
+        url: srv.server+'/volume/'+srv.task.segmentation_id+'/edges',
+      }).then(function successCallback(response) {
           // this callback will be called asynchronously
           // when the response is available
           callback(response.data);
 
         }, function errorCallback(response) {
-          // called asynchronously if an error occurs
-          // or server returns response with an error status.
-        });
-    }
+          console.error(response);
+      });
+    };
 
     return srv;
   });

@@ -21,6 +21,12 @@ angular.module('cubeApp')
 
     srv.create_camera = function (perspFov, orthoFov, viewHeight) {
 
+      function simpleViewHeight(fov, realHeight) {
+        function deg2Rad(deg) { return deg / 180 * Math.PI; }
+        var radius = realHeight / Math.sin(deg2Rad(fov)) * Math.sin(deg2Rad((180 - fov) / 2));
+        return fov * radius;
+      }
+
       var realCamera = new THREE.PerspectiveCamera(
         perspFov, // Field of View (degrees)
         $window.innerWidth / $window.innerHeight, // Aspect ratio (set later) TODO why?
@@ -31,12 +37,6 @@ angular.module('cubeApp')
       realCamera.position.set(0, 0, simpleViewHeight(perspFov, viewHeight) / perspFov);
       realCamera.up.set(0, 1, 0);
       realCamera.lookAt(new THREE.Vector3(0, 0, 0));
-
-      function simpleViewHeight(fov, realHeight) {
-        function deg2Rad(deg) { return deg / 180 * Math.PI; }
-        var radius = realHeight / Math.sin(deg2Rad(fov)) * Math.sin(deg2Rad((180 - fov) / 2));
-        return fov * radius;
-      }
 
       return {
         realCamera: realCamera,
@@ -61,7 +61,7 @@ angular.module('cubeApp')
           realCamera.updateProjectionMatrix();
         }
       };
-    }
+    };
 
 
     srv.create_cube = function() {
@@ -84,10 +84,6 @@ angular.module('cubeApp')
       var wireframe = new THREE.BoxHelper(srv.cube);
       wireframe.material.color.set("#000000");
       srv.pivot.add(wireframe);
-
-      var segments = new THREE.Object3D();
-      segments.position.set(-.5, -.5, -.5);
-      srv.cube.add(segments);
     };
 
 
@@ -113,7 +109,7 @@ angular.module('cubeApp')
 
       srv.camera = srv.create_camera(40, 0.1, 2);
 
-      srv.scene.add(srv.camera.realCamera)
+      srv.scene.add(srv.camera.realCamera);
    
       srv.create_cube();
    
@@ -126,8 +122,8 @@ angular.module('cubeApp')
         srv.scene.autoUpdate = false; // since we call updateMatrixWorld below
         return function () {
 
-          if (tileService.planes.z == undefined) {
-            return
+          if (tileService.planes.z === undefined) {
+            return;
           }
           srv.scene.updateMatrixWorld();
           cameraToPlane.setFromMatrixPosition(tileService.planes.z.matrixWorld);
@@ -139,9 +135,9 @@ angular.module('cubeApp')
           // is the camera on the same side as the front of the plane?
           var cameraInFront = cameraToPlane.dot(faceVec) >= 0;
           srv.renderer.render(srv.scene, srv.camera.realCamera, undefined, undefined, cameraInFront, !meshService.transparent);
-        }
+        };
       }());
-    }
+    };
 
     srv.resize = function() {
 
@@ -151,10 +147,6 @@ angular.module('cubeApp')
       srv.needsRender = true;
 
       // ThreeDView.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    srv.pleaseRender = function() {
-
     };
 
     return srv;

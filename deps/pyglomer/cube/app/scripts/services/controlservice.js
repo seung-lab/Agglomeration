@@ -13,7 +13,7 @@ angular.module('cubeApp')
     var srv = {
       states: { NONE: 1, ROTATE: 2, ANIMATE: 3},
       prev_state: null,
-      curr_state: null,
+      state: null,
       snap_states: { NONE: 1, BEGIN: 2, ORTHO: 3, SHIFT: 4 },
       snap_state: null,
       object: null,
@@ -46,7 +46,7 @@ angular.module('cubeApp')
       srv.object = object;
       srv.camera = camera;
       srv.prev_state = srv.states.NONE;
-      srv.curr_state = srv.states.NONE;
+      srv.state = srv.states.NONE;
       srv.prev_quaternion = srv.object.quaternion.clone()
       srv.snap_state = srv.snap_states.NONE
 
