@@ -292,10 +292,7 @@ angular.module('cubeApp')
           }
         }
       }
-
       srv.stagingContext.putImageData(channelImageData, 0, 0);
-
-      // return copy;
     }
 
     // returns the the segment id located at the given x y position of this tile

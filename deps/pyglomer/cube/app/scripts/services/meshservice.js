@@ -52,8 +52,8 @@ angular.module('cubeApp')
     };
 
     function init() {
-      srv.meshes.position.set(-.5, -.5, -.5);
-    };
+      srv.meshes.position.set(-0.5, -0.5, -0.5);
+    }
     init();
 
     srv.transparent = function() {
@@ -62,7 +62,7 @@ angular.module('cubeApp')
 
     function get_mesh( volume_id , segment_id,  color, callback ) {
 
-      var count = 0
+      var count = 0;
       var segmentMesh = new THREE.Object3D();
       segmentMesh.segment_id = segment_id;
       var material = srv.get_material( color );
@@ -70,15 +70,22 @@ angular.module('cubeApp')
       srv.CHUNKS.forEach(function(chunk, idx) {       
         var meshUrl = srv.server + '/volume/' + volume_id + '/chunk/0/'+ chunk[0] + '/' + chunk[1] + '/' + chunk[2] + '/mesh/' + segment_id;
         var ctm = new THREE.CTMLoader(false);
-        ctm.load( meshUrl , function(geometry) { 
+        ctm.load( meshUrl , function(bufferGeometry) { 
 
-          if (geometry) {
+          if (bufferGeometry) {
+
+            var geometry = new THREE.Geometry().fromBufferGeometry( bufferGeometry );
+            geometry.computeFaceNormals();
+            geometry.computeVertexNormals();
             var mesh = new THREE.Mesh( geometry , material );
+            var edges = new THREE.FaceNormalsHelper( mesh, 20, 0x00ff00, 10 );
             segmentMesh.add(mesh);
+         
+
           }
 
-          count ++;
-          if (count == srv.CHUNKS.length) {
+          count++;
+          if (count === srv.CHUNKS.length) {
             callback(segmentMesh)
           }
           
@@ -196,7 +203,7 @@ angular.module('cubeApp')
       var shader = Shaders.idPacked;
       {
         var u = shader.uniforms;
-        u.color.value = new THREE.Color(color);
+        u.color.value = color;
         u.mode.value = 0;
         u.opacity.value = srv.opacity;
         u.nMin.Value =  new THREE.Vector3(0.0, 0.0 , 0.0); //This value gets updated by the tileService
@@ -215,19 +222,24 @@ angular.module('cubeApp')
 
     srv.displayMesh = function(volume_id, segment_id, color ) {
 
+      var color =  new THREE.Color(color);
       if (!(segment_id in srv.cache)) {
         get_mesh( volume_id , segment_id, color,  function(mesh) {
           srv.cache[segment_id] = mesh;
           srv.meshes.add(mesh);
         });
       } else {
-        //TODO resfresh cache time, once we have real cache
-        srv.meshes.add(srv.cache[segment_id]);
+        //TODO resfresh cache time, once we have a real cache
+        var segment = srv.cache[segment_id]
+        srv.setSegmentColor(segment, color);
+        srv.meshes.add(segment);
       }
+    }
 
-
-
-
+    srv.setSegmentColor = function(segment , color) {
+      segment.children.forEach(function (mesh) {
+        mesh.material.uniforms.color.value = color;
+      });
     }
 
     return srv;

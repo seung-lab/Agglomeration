@@ -57,16 +57,6 @@ class MeshHandler(tornado.web.RequestHandler):
   def get(self, volume_id, mip, x, y, z, segment_id):
     volume_id, mip, x, y, z, segment_id = int(volume_id), int(mip), int(x), int(y), int(z), int(segment_id)
 
-    # url = "http://data.eyewire.org/volume/{0}/chunk/0/{1}/{2}/{3}/mesh/{4}".format(volume_id, x, y, z, segment_id)
-    # response = requests.get(url)
-    # self.set_header('Access-Control-Expose-Headers','Content-Length')
-    # self.set_header('Content-type', 'text/plain;')
-    # self.set_header('Content-Length', len(ctmfile))
-    # self.set_header('Access-Control-Allow-Origin', '*')
-    # self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS') 
-    # self.write(ctmfile)
-    # self.finish()
-
     if (x,y,z,segment_id) not in meshes:
       chunk = get_subtile(segmentation, x, y, z, overlap=1)
       vertices, triangles = mesh.marche_cubes([segment_id], chunk)
@@ -120,6 +110,24 @@ class EdgesHandler(tornado.web.RequestHandler):
     edges = reponse_cache[volume_id]
     return_json(self, edges[edge_number])
     edge_number += 1
+
+  def post(self, volume_id):
+    print json.loads(self.request.body)
+    self.set_header("Content-Type", "text/plain")
+    self.set_header('Access-Control-Allow-Origin', '*')
+    self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS') 
+    self.set_status(200)
+    self.finish()
+
+
+  def options(self, volume_id):
+    self.set_header("Content-Type", "text/plain")
+    self.set_header('Access-Control-Allow-Headers','Content-Length')
+    self.set_header('Access-Control-Allow-Headers','Content-Type')
+    self.set_header('Access-Control-Allow-Origin', '*')
+    self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS') 
+    self.set_status(200)
+    self.finish()
 
 class TaskHandler(tornado.web.RequestHandler):
   def get(self):

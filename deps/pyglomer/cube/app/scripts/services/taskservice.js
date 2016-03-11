@@ -13,7 +13,8 @@ angular.module('cubeApp')
 
     var srv = {
       server: 'http://localhost:8888',
-      task: null
+      task: null,
+      current_edge: null
     };
 
     srv.getTask = function( callback ) {
@@ -39,10 +40,23 @@ angular.module('cubeApp')
           // this callback will be called asynchronously
           // when the response is available
           callback(response.data);
+          srv.current_edge = response.data;
 
         }, function errorCallback(response) {
           console.error(response);
       });
+    };
+
+    srv.submitEdgeDecision = function( decision ) {
+
+        $http({
+          method: 'POST',
+          url: srv.server+'/volume/'+srv.task.segmentation_id+'/edges',
+          data: { 'edge': srv.current_edge, 'decision': decision }
+        }).then(function successCallback(response) {
+          }, function errorCallback(response) {
+            console.error(response);
+        });
     };
 
     return srv;

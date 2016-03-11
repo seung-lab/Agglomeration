@@ -19,8 +19,8 @@ angular.module('cubeApp')
 
       srv.overlayCanvas = document.getElementById('overlay');
       srv.overlayContext = srv.overlayCanvas.getContext('2d');
-      srv.resize()
-    }
+      srv.resize();
+    };
 
     srv.resize = function() {
       
@@ -46,14 +46,14 @@ angular.module('cubeApp')
       srv.overlayContext.stroke();
 
       srv.setTimeline(0.002);
-    }
+    };
 
 
-    function hideTimeline() {
+    // function hideTimeline() {
     // var center = new THREE.Vector2(overlayCanvas.width / 2, overlayCanvas.height / 2);
     // var start = new THREE.Vector2(+circleRadius * 0.6, 0).add(center);
     // overlayContext.clearRect(start.x, start.y - 1, circleRadius * 1.2, 3);
-    }
+    // }
 
     srv.setTimeline = function(fraction) {
 
@@ -63,7 +63,7 @@ angular.module('cubeApp')
       srv.overlayContext.clearRect(startOfLine.x - 1, startOfLine.y, 3, -srv.circleRadius );
       srv.overlayContext.fillRect(startOfLine.x, startOfLine.y, 2, -srv.circleRadius * fraction);
       srv.overlayContext.fillRect(startOfLine.x, startOfLine.y - srv.circleRadius - 3, 2, 2);
-    }
+    };
 
     return srv;
 

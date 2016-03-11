@@ -66,7 +66,7 @@ angular.module('cubeApp')
 
       if (keyboardService.key('z', keyboardService.HELD)) {
 
-          var point = controlService.getPositionOnTileFromMouse(mouse);
+          var point = controlService.getPositionOnTileFromMouse();
 
           if (point) {
             controlService.animateToPositionAndZoom(point, 4);
@@ -85,12 +85,22 @@ angular.module('cubeApp')
         needsRender = true;
       }
 
-      if (keyboardService.key('y', keyboardService.PRESSED) 
-        || keyboardService.key('n', keyboardService.PRESSED) 
-        || keyboardService.key('m', keyboardService.PRESSED)) {
+      if (keyboardService.key('y', keyboardService.PRESSED)) {
+        taskService.submitEdgeDecision('y');
         displayNextEdge();
         tileService.draw();
-        needsRender = true;
+      }
+
+      if (keyboardService.key('n', keyboardService.PRESSED)) {
+        taskService.submitEdgeDecision('n');
+        displayNextEdge();
+        tileService.draw();
+      }
+
+      if (keyboardService.key('m', keyboardService.PRESSED)) {
+        taskService.submitEdgeDecision('m');
+        displayNextEdge();
+        tileService.draw();
       }
 
       var td = 0;

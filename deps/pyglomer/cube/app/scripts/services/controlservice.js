@@ -8,7 +8,7 @@
  * Service in the cubeApp.
  */
 angular.module('cubeApp')
-  .service('controlService', function (meshService, tileService, planeService) {
+  .service('controlService', function (meshService, tileService, planeService, sceneService) {
     // AngularJS will instantiate a singleton by calling "new" on this function
     var srv = {
       states: { NONE: 1, ROTATE: 2, ANIMATE: 3},
@@ -28,6 +28,8 @@ angular.module('cubeApp')
       targetQuaternion: new THREE.Quaternion(),
       panStart: new THREE.Vector2(),
       panEnd: new THREE.Vector2(),
+      mouse: new THREE.Vector2(),
+      raycaster: new THREE.Raycaster(),
       events: {
         changeEvent: { type: 'change' },
         startEvent: { type: 'start' },
@@ -134,7 +136,7 @@ angular.module('cubeApp')
     };
 
 
-    function animateToTargetQuaternion(duration, cb) {
+    srv.animateToTargetQuaternion = function(duration, cb) {
 
       srv.state = srv.states.ANIMATE; 
       var startQuat = new THREE.Quaternion().copy(srv.object.quaternion);
@@ -155,6 +157,42 @@ angular.module('cubeApp')
         cb();
       }).start();
     }
+
+    var animating = false;
+    var centerPoint = new THREE.Vector2(0, 0);
+    srv.animateToPositionAndZoom = function(point, zoomLevel, reset) {
+      if (animating) {
+        return;
+      }
+
+      centerPoint.copy(point);
+
+      animating = true;
+      srv.isZoomed = zoomLevel !== 1;
+
+      var duration = 500;
+
+      // new TWEEN.Tween(SegmentManager).to({ opacity: 0.8 }, duration)
+      // .onUpdate(function () {
+      //     needsRender = true;
+      // })
+      // .start();
+
+      new TWEEN.Tween(sceneService.cube.position).to({x: -point.x, y: -point.y, z: !reset ? -tileService.planes.z.position.z + 0.5 : 0}, duration)
+        .easing(TWEEN.Easing.Sinusoidal.InOut)
+        .onUpdate(function () {
+          needsRender = true;
+        }).start();
+
+
+      new TWEEN.Tween(srv.camera).to({viewHeight: 2/zoomLevel}, duration)
+        .easing(TWEEN.Easing.Sinusoidal.InOut).onUpdate(function () {
+          // needsRender = true;
+        }).onComplete(function () {
+          animating = false;
+        }).start();
+    }
+
 
       // listeners
     function keydown( event ) {
@@ -248,7 +286,7 @@ angular.module('cubeApp')
       srv.noRotate = true;
       srv.rotateStart.copy( srv.rotateEnd );
 
-      animateToTargetQuaternion(250, function () {
+      srv.animateToTargetQuaternion(250, function () {
         srv.snapState = srv.snap_states.ORTHO;
         srv.dispatchEvent( srv.events.changeEvent ); // TODO have to dispatch change before snapcomplete so that the camera is put in final place, this means we dispatch twice
         srv.dispatchEvent( srv.events.snapCompleteEvent );
@@ -342,6 +380,20 @@ angular.module('cubeApp')
         planeService.opacity = Math.max(1 - p, 0.8);
         // planeService.opacity = (1-p) * (0.2) + 0.8;
       }).start();
+    };
+
+    srv.getPositionOnTileFromMouse = function() {
+
+      srv.raycaster.setFromCamera(srv.mouse, srv.camera.realCamera);
+      var intersects = srv.raycaster.intersectObject(tileService.planes.z);
+
+      if (intersects.length === 1) {
+        var point = intersects[0].point;
+        point.applyQuaternion(sceneService.pivot.quaternion.clone().inverse());
+        point.sub(sceneService.cube.position);
+
+        return new THREE.Vector2(point.x, point.y);
+      }
     }
 
 
