@@ -36,7 +36,7 @@ angular.module('cubeApp')
       currentTileFloat: null,
       planes: {},  
       server: 'http://localhost:8888',
-      highlight_segments: true
+      highlight_segments: true,
     };
 
     srv.init = function(channel_id, segmentation_id) {
@@ -183,12 +183,18 @@ angular.module('cubeApp')
       srv.planesHolder.add(srv.planes.z);
     };
 
+    function rgbToSegIdOffset(rgb, offset) {
+      return rgb[offset] + rgb[offset+1] * 256 + rgb[offset+2] * 256 * 256;
+    }
+
     function convertBase64ImgToImage(b64String, callback) {
       var imageBuffer = new Image();
       imageBuffer.onload = function () {
         callback(this);
       };
       imageBuffer.src = b64String;
+
+    
     }
 
     // loads all the segmentation and channel images for this tile
@@ -207,6 +213,21 @@ angular.module('cubeApp')
       convertBase64ImgToImage(data, function (image) {
         srv.tiles[tile_idx][type][chunk] = image;
         srv.tiles[tile_idx].count++;
+
+        if (type === 'segmentation') {
+          srv.bufferContext.drawImage(image, 0, 0);
+          var segPixels = srv.bufferContext.getImageData(0, 0, srv.CHUNK_SIZE, srv.CHUNK_SIZE).data;
+
+          var z = tile_idx;
+
+          for (var i = 0; i < 128 * 128; ++i) {
+            var px = i % srv.CHUNK_SIZE + x * srv.CHUNK_SIZE;
+            var py = Math.floor(i / srv.CHUNK_SIZE) + y * srv.CHUNK_SIZE;
+            var pixel = z * 256 * 256 + py * 256 + px;
+
+            meshService.pixelToSegId[pixel] = rgbToSegIdOffset(segPixels, i * 4);
+          }
+        }
 
           if (srv.isComplete(tile_idx)) { // all tiles have been loaded
             callback(srv.tiles[tile_idx]);

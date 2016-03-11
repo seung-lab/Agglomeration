@@ -12,20 +12,7 @@ pp = pprint.PrettyPrinter(indent=2, depth=5)
 
 from heapq import *
 
-
-
-def read_features( dataset ):
-
-  nodes =  sc.pickleFile(dataset.files('nodes'))
-  dataset.g.g = nx.read_gpickle(dataset.files('graph'))
-  
-  nodes_to_merge, edges_to_score = dataset.graph().merge_next_n(10)
-  nodes = merge_nodes( nodes_to_merge, nodes )
-  score_edges( edges_to_score, nodes )
-
-
-
-if __name__ == '__main__':
+def init():
 
   conf = SparkConf().setMaster("local[7]").setAppName("Agglomerator")
   conf.set("spark.executor.memory", "5g")
@@ -38,19 +25,46 @@ if __name__ == '__main__':
   log4j = sc._jvm.org.apache.log4j
   log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
 
-
-
-
   dataset = Dataset(sc, sqlContext)
-  dataset.compute_voxel_features()
-  g = GraphFrame(dataset.nodes, dataset.edges)
 
-  g.edges.registerTempTable('edges')
+  # dataset.compute_voxel_features()
+  # g = GraphFrame(dataset.nodes, dataset.edges)
+  # g.vertices.write.parquet(dataset.files('vertices'))
+  # g.edges.write.parquet(dataset.files('edges'))
 
-  g.edges.show()
-  sqlContext.sql("""select e.src, e.dst, e.mean_affinity 
-                    from edges e
-                    where not exists (select src from edges where src = e.dst)""").show()
+
+  # Load the vertices and edges back.
+  # sameV = sqlContext.read.parquet(dataset.files('vertices'))
+  # sameE = sqlContext.read.parquet(dataset.files('edges'))
+  # sameG = GraphFrame(sameV, sameE)
+
+
+  # g.edges.registerTempTable('edges')
+  # edges = sqlContext.sql("""select e.src, e.dst, e.mean_affinity 
+  #                   from edges e
+  #                   order by abs(0.5 - e.mean_affinity)""").collect()
+ 
+
+
+  # nodes = set()
+  # filtered_edges = []
+  # for edge in edges:
+  #   if tuple(edge.src) not in nodes and tuple(edge.dst) not in nodes:
+  #     filtered_edges.append(edge)
+  #     nodes.add(tuple(edge.src))
+  #     nodes.add(tuple(edge.dst))
+  #     print edges
+
+
+  sc.stop()
+
+
+init()
+def get_edges():
+  pass
+  # sqlContext.sql("""select e.src, e.dst, e.mean_affinity 
+  #                   from edges e
+  #                   where not exists (select src from edges where src = e.dst)""").show()
  
   # edges = g.edges.groupBy('src').agg(
   # f.max( 
@@ -76,7 +90,6 @@ if __name__ == '__main__':
 
   #read_features(dataset)
 
-  sc.stop()
 
   # d = Dataset()
   # print volumes.take(1)

@@ -42,15 +42,15 @@ angular.module('cubeApp')
         realCamera: realCamera,
         perspFov: perspFov,
         orthoFov: orthoFov,
-        viewHeight: viewHeight,
+        _viewHeight: viewHeight,
         fakeViewHeight:simpleViewHeight(perspFov, viewHeight),
         set viewHeight(vH) {
-          this.viewHeight = vH;
+          this._viewHeight = vH;
           this.fakeViewHeight = simpleViewHeight(perspFov, vH);
           this.fov = srv.fov; // hahaha
         },
         get viewHeight() {
-          return srv.viewHeight;
+          return srv._viewHeight;
         },
         get fov() {
           return realCamera.fov;
@@ -134,7 +134,7 @@ angular.module('cubeApp')
 
           // is the camera on the same side as the front of the plane?
           var cameraInFront = cameraToPlane.dot(faceVec) >= 0;
-          srv.renderer.render(srv.scene, srv.camera.realCamera, undefined, undefined, cameraInFront, !meshService.transparent);
+          srv.renderer.render(srv.scene, srv.camera.realCamera, undefined, undefined, cameraInFront);
         };
       }());
     };

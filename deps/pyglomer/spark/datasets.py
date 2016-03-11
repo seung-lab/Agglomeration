@@ -16,8 +16,10 @@ class Dataset:
     self.sc = sc
     self.sqlContext = sqlContext
     self.nodes =  None
+    self.chunks = None
 
-  def _import_hdf5(self, chunk_size=50, overlap=1 ):
+
+  def _import_hdf5(self, chunk_size=128, overlap=1 ):
 
     ImportTask = namedtuple('ImportTask', ['chunk_pos', 'start', 'end' , 'overlap' , 'files']) 
     importTasks = []
@@ -46,7 +48,7 @@ class Dataset:
 
   @staticmethod
   def _get_subvolume( it ):
-    SubVolume = namedtuple('SubVolume', ['machine_labels','human_labels','affinities', 'start', 'end' , 'overlap']) 
+    SubVolume = namedtuple('SubVolume', ['chunk', 'machine_labels','human_labels','affinities', 'start', 'end' , 'overlap']) 
 
     data = {}
     for h5file in ['machine_labels', 'human_labels' , 'affinities']:
@@ -66,7 +68,8 @@ class Dataset:
 
       data[h5file] = chunk_data
 
-    sv = SubVolume(data['machine_labels'],
+    sv = SubVolume(it.chunk_pos,
+                   data['machine_labels'],
                    data['human_labels'],
                    data['affinities'],
                    it.start,
@@ -79,6 +82,8 @@ class Dataset:
     volumes = self._import_hdf5()
     volumes = self.sc.parallelize(volumes)
     subvolumes = volumes.map(self._get_subvolume)
+    self.chunks = subvolumes.map(lambda subvolume: (subvolume.chunk, (subvolume.channels, subvolume.machine_labels)))
+
     return subvolumes
 
   def compute_voxel_features(self):
@@ -127,14 +132,10 @@ class Dataset:
     else:
 
       files = {
-        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/toy/machine_labels.h5',
-        'human_labels': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/toy/human_labels.h5',
-        'affinities': '/usr/people/it2/code/Agglomerator/deps/datasets/SNEMI3D/toy/affinities.h5',
-        'adjcency':'./pyglomer/spark/tmp/adjcency',
-        'sizes': './pyglomer/spark/tmp/sizes',
-        'meshes':'./pyglomer/spark/tmp/meshes',
-        'nodes': './pyglomer/spark/tmp/nodes',
-        'graph': './pyglomer/spark/tmp/graph',
+        'machine_labels': '/usr/people/it2/seungmount/Omni/TracerTasks/iarpa_experiments/exp_2/machine_labels.h5',
+        'human_labels': '/usr/people/it2/seungmount/Omni/TracerTasks/iarpa_experiments/exp_2/machine_labels.h5',
+        'affinities': '/usr/people/it2/seungmount/Omni/TracerTasks/iarpa_experiments/exp_2/affinities.h5',
+        'vertices': './pyglomer/spark/tmp/vertices',
         'edges': './pyglomer/spark/tmp/edges'
       }
   

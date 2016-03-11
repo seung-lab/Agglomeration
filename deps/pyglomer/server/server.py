@@ -3,6 +3,7 @@ import tornado.web
 from pyglomer.eyewire.volume import *
 from pyglomer.eyewire import Tile
 from  pyglomer.util import mesh
+from pyglomer.spark import spark
 import pyglomer.eyewire.api
 
 from tornado.escape import json_encode
@@ -39,6 +40,8 @@ class TileHandler(tornado.web.RequestHandler):
 
   def get(self, volume_id, mip, x, y, z, lower, upper):
     volume_id, mip, x, y, z, lower, upper = int(volume_id), int(mip), int(x), int(y), int(z), int(lower), int(upper)
+
+  
     
     if volume_id == 74627:
       chunk = get_subtile(channel, x, y, z)
@@ -152,6 +155,8 @@ class TaskHandler(tornado.web.RequestHandler):
     return_json(self, task)
 
 def make_app():
+    spark.init()
+
     return tornado.web.Application([
       (r'', MainHandler),
       (r'/tasks', TaskHandler),

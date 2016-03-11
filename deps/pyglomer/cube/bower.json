@@ -9,7 +9,6 @@
     "angular-route": "^1.4.0",
     "angular-sanitize": "^1.4.0",
     "angular-touch": "^1.4.0",
-    "three.js": "threejs#*",
     "tween.js": "tweenjs#^16.3.4"
   },
   "devDependencies": {

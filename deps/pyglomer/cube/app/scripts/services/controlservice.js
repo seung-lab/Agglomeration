@@ -8,7 +8,7 @@
  * Service in the cubeApp.
  */
 angular.module('cubeApp')
-  .service('controlService', function (meshService, tileService, planeService, sceneService) {
+  .service('controlService', function (meshService, tileService, planeService, overlayService, sceneService) {
     // AngularJS will instantiate a singleton by calling "new" on this function
     var srv = {
       states: { NONE: 1, ROTATE: 2, ANIMATE: 3},
@@ -128,17 +128,54 @@ angular.module('cubeApp')
       }
       if (!srv.object.quaternion.equals(srv.prev_quaternion)) {
         srv.prev_quaternion.copy(srv.object.quaternion);
-        srv.dispatchEvent(srv.events.changeEvent);
+        changeEvent();
       } 
       else {
-        srv.dispatchEvent(srv.events.changeEvent);
+        changeEvent();
       }  
     };
 
+    function changeEvent() {
+  
+        if (srv.snap_state === srv.snap_states.SHIFT) {
+
+
+        // TODO , this doesn't work with rotating on the z axis, think about this from the ground up
+        // maybe keep track of angle in rotate cube after a snap event
+        var targetFacingVec = new THREE.Vector3(0, 0, 1);
+        targetFacingVec.applyQuaternion(srv.targetQuaternion);
+
+        var currentFacingVec = new THREE.Vector3(0, 0, 1);
+        currentFacingVec.applyQuaternion(sceneService.pivot.quaternion);
+
+        var angle = targetFacingVec.angleTo(currentFacingVec);
+
+        var segmentOpacity = function (currentOpacity, angle, min, max) {
+          if (angle === 0) {
+            return 0;
+          } else if (angle < currentOpacity && angle < min) {
+            return Math.min(min, currentOpacity);
+          } else {
+            return Math.min(max, angle);
+          }
+        }
+
+
+        var p = Math.min(1, angle / (Math.PI / 4));
+        var op = segmentOpacity(meshService.opacity, p, 0.3, 1);
+
+        planeService.opacity = Math.max(1 - op, 0.8);
+        meshService.setOpacity(op);
+
+        sceneService.camera.fov = Math.max(sceneService.camera.fov, sceneService.camera.orthoFov * (1 - p) + sceneService.camera.perspFov * p);
+      }
+    }
 
     srv.animateToTargetQuaternion = function(duration, cb) {
 
       srv.state = srv.states.ANIMATE; 
+      srv.snap_state = srv.snap_states.ORTHO;
+
       var startQuat = new THREE.Quaternion().copy(srv.object.quaternion);
       var opacity = {t: 0};
       var currentSegOpacity = meshService.opacity;
@@ -147,7 +184,7 @@ angular.module('cubeApp')
         THREE.Quaternion.slerp(startQuat, srv.targetQuaternion, srv.object.quaternion, opacity.t);
         var p = 1 - opacity.t;
         srv.camera.fov = Math.min(srv.camera.fov, srv.camera.orthoFov * (1 - p) + srv.camera.perspFov * p);
-        meshService.opacity = Math.min(meshService.opacity, p);
+        meshService.setOpacity( Math.min(meshService.opacity, p));
         tileService.opacity = opacity.t * 0.2 + 0.8;
 
       }).onComplete(function () {
@@ -177,20 +214,23 @@ angular.module('cubeApp')
       //     needsRender = true;
       // })
       // .start();
+      console.log(sceneService.cube.position)
 
       new TWEEN.Tween(sceneService.cube.position).to({x: -point.x, y: -point.y, z: !reset ? -tileService.planes.z.position.z + 0.5 : 0}, duration)
         .easing(TWEEN.Easing.Sinusoidal.InOut)
         .onUpdate(function () {
-          needsRender = true;
-        }).start();
+          console.log(sceneService.cube.position)
 
-
-      new TWEEN.Tween(srv.camera).to({viewHeight: 2/zoomLevel}, duration)
-        .easing(TWEEN.Easing.Sinusoidal.InOut).onUpdate(function () {
           // needsRender = true;
-        }).onComplete(function () {
-          animating = false;
         }).start();
+
+
+      // new TWEEN.Tween(srv.camera).to({viewHeight: 2/zoomLevel}, duration)
+      //   .easing(TWEEN.Easing.Sinusoidal.InOut).onUpdate(function () {
+      //     // needsRender = true;
+      //   }).onComplete(function () {
+      //     animating = false;
+      //   }).start();
     }
 
 
@@ -283,13 +323,16 @@ angular.module('cubeApp')
       }
 
       srv.snap_state = srv.snap_states.BEGIN;
-      srv.noRotate = true;
+      // srv.noRotate = true;
       srv.rotateStart.copy( srv.rotateEnd );
 
       srv.animateToTargetQuaternion(250, function () {
         srv.snapState = srv.snap_states.ORTHO;
-        srv.dispatchEvent( srv.events.changeEvent ); // TODO have to dispatch change before snapcomplete so that the camera is put in final place, this means we dispatch twice
-        srv.dispatchEvent( srv.events.snapCompleteEvent );
+        changeEvent();
+        planeService.opacity = 1;
+        overlayService.setTimeline(tileService.planes.z.position.z);
+        meshService.setOpacity(0);
+
       });
     };
 
@@ -368,17 +411,14 @@ angular.module('cubeApp')
 
     srv.unSnap = function () {
       srv.snap_state = srv.snap_states.NONE;
-      srv.dispatchEvent( srv.events.unSnapEvent);
-      srv.noRotate = false;
 
       var o = {t: 0};
       new TWEEN.Tween(o).to({t: 1}, 250).onUpdate(function () {
         var p = o.t;
         
         srv.camera.fov = Math.max(srv.camera.fov, srv.camera.orthoFov * (1 - p) + srv.camera.perspFov * p);
-        tileService.opacity = p;// * (isZoomed ? 0.8 : 1.0);
-        planeService.opacity = Math.max(1 - p, 0.8);
-        // planeService.opacity = (1-p) * (0.2) + 0.8;
+        meshService.setOpacity(p);// * (isZoomed ? 0.8 : 1.0);
+        planeService.opacity = (1-p) * (0.2) + 0.8;
       }).start();
     };
 

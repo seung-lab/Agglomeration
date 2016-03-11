@@ -67,7 +67,7 @@ angular.module('cubeApp')
       if (keyboardService.key('z', keyboardService.HELD)) {
 
           var point = controlService.getPositionOnTileFromMouse();
-
+          console.log(point);
           if (point) {
             controlService.animateToPositionAndZoom(point, 4);
           }
@@ -129,9 +129,69 @@ angular.module('cubeApp')
       }
 
       taskService.getNextEdge(function(edge){
-        meshService.displayEdge(taskService.task.segmentation_id, edge);
+        meshService.displayEdge(taskService.task.segmentation_id, edge, function(segment) {
+          //This function is called for every segment being loaded
+          animateDisplaySegment(segment);
+        });
       });
     }
+
+    function animateDisplaySegment(segment) {
+
+      var duration = 500;
+      if (controlService.snap_state === controlService.snap_states.ORTHO) {
+          segment.visible = true;
+          var indvTweenOut = new TWEEN.Tween(SegmentProxy(segment)).to({ opacity: 1.0 }, duration).onUpdate(function () {
+            needsRender = true;
+          })
+          .repeat(1)
+          .yoyo(true)
+          .onComplete(function () {
+            segment.visible = false;
+          })
+          .start();
+
+          var reshowPlaneTween = new TWEEN.Tween(planeService).to({ opacity: 1.0 }, duration).onUpdate(function () {
+            needsRender = true;
+          });
+
+          var hidePlaneTween = new TWEEN.Tween(planeService).to({ opacity: 0.8 }, duration).onUpdate(function () {
+            needsRender = true;
+          }).chain(reshowPlaneTween).start();
+        } else {
+          var indvTweenOut = new TWEEN.Tween(SegmentProxy(segment)).to({ opacity: meshService.opacity }, duration).onUpdate(function () {
+            needsRender = true;
+          }).start();
+      }
+    }
+
+    function SegmentProxy(segment) {
+
+      return {
+        get opacity() {
+          return segment.children[0].material.uniforms.opacity.value;
+        },
+
+        set opacity(op) {
+          meshService.setSegmentOpacity( segment, op )
+
+          var eps = 0.05;
+
+          if (op < eps) {
+            segment.visible = false;
+          } else if (op === 1) {
+            segment.visible = true;
+            // mesh.material.transparent = false; // TODO, why does this cause the segment to blip?
+          } else {
+            segment.visible = true;
+            segment.children.forEach(function (mesh) {
+              mesh.material.transparent = true;
+            });
+          }
+        }
+      }
+    }
+
 
     var needsRender = true
     function animate() {

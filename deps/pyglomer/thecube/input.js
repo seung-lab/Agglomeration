@@ -75,13 +75,10 @@ function button(n, state) {
 }
 
 function key(key_name, state) {
-  
     if (state === PRESSED) {
         return pressed_keys.contains(key_name);
     } else if (state === HELD) {
         return held_keys.contains(key_name);
-    } else if (state == RELEASED) {
-        return released_keys.contains(key_name);
     }
     return false;
 }
