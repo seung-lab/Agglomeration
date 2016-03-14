@@ -30,9 +30,7 @@ angular.module('cubeApp')
       meshes: new THREE.Object3D(),
       pixelToSegId: new Int32Array(256 * 256 * 256)  
     };
-
-    window.meshService = srv;
-    
+ 
     // sets the opacity for all segments
     srv.setOpacity = function(op) {
       srv.opacity = op;
@@ -249,41 +247,16 @@ angular.module('cubeApp')
         mesh.material.uniforms.color.value = color;
       });
     };
+
     srv.setSegmentOpacity = function(segment , opacity) {
       segment.children.forEach(function (mesh) {
         mesh.material.uniforms.opacity.value = opacity;
       });
     };
 
-    function generateMeshForSegment(segId) {
-      var segGeo = generateGeoForSegment(segId, pixelToSegId);
-
-      var color = SegmentManager.isSeed(segId) ? "rgb(0, 104, 242)" : "rgb(40, 205, 255)";
-      var shader = $.extend(true, {
-        transparent: true,
-        side: THREE.DoubleSide
-      }, Shaders.idPacked);
-      
-      var u = shader.uniforms;
-      u.color.value = new THREE.Color(color);
-      u.segid.value = segId;
-      u.mode.value = 0;
-      u.opacity.value = SegmentManager.opacity;
-
-      u.nMin.value = new THREE.Vector3(0.0, 0.0, planes.z.position.z);
-      u.nMax.value = new THREE.Vector3(1.0, 1.0, 1.0);
-
-      var material = new THREE.ShaderMaterial(shader);
-
-      var segMesh = new THREE.Mesh(segGeo, material);
-
-      material.issegment = true; // hacked three.js so that we can render transparent segments before and after the plane
-
-      return segMesh;
-    }
-
     function get_mesh2( volume_id , segment_id,  color, callback ) {
-
+      // Compute the mesh in the browser using marching cubes
+      
       var count = 0;
       var segmentMesh = new THREE.Object3D();
       segmentMesh.segment_id = segment_id;

@@ -86,10 +86,15 @@ angular.module('cubeApp')
       srv.pivot.add(wireframe);
     };
 
+    srv.resize = function() {
+      srv.camera.realCamera.aspect = $window.innerWidth / $window.innerHeight;
+      srv.camera.realCamera.updateProjectionMatrix();
+      srv.renderer.setSize($window.innerWidth, $window.innerHeight);
+      srv.needsRender = true;
+      // ThreeDView.setSize(window.innerWidth, window.innerHeight);
+    };
 
-
-
-    srv.init = function() {
+    function init() {
 
       srv.renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -138,16 +143,8 @@ angular.module('cubeApp')
         };
       }());
     };
+    init();
 
-    srv.resize = function() {
-
-      srv.camera.realCamera.aspect = $window.innerWidth / $window.innerHeight;
-      srv.camera.realCamera.updateProjectionMatrix();
-      srv.renderer.setSize($window.innerWidth, $window.innerHeight);
-      srv.needsRender = true;
-
-      // ThreeDView.setSize(window.innerWidth, window.innerHeight);
-    };
 
     return srv;
 

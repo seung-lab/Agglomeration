@@ -12,56 +12,55 @@ pp = pprint.PrettyPrinter(indent=2, depth=5)
 
 from heapq import *
 
-def init():
+class SparkServer(object):
+  def __init__(self):
 
-  conf = SparkConf().setMaster("local[7]").setAppName("Agglomerator")
-  conf.set("spark.executor.memory", "5g")
-  conf.set("spark.executor.cores", 1)
-  conf.set("spark.driver.memory","5g")
+    conf = SparkConf().setMaster("local[7]").setAppName("Agglomerator")
+    conf.set("spark.executor.memory", "5g")
+    conf.set("spark.executor.cores", 1)
+    conf.set("spark.driver.memory","5g")
 
-  sc = SparkContext(conf=conf)
-  sqlContext = SQLContext(sc)
+    self.sc = SparkContext(conf=conf)
+    sqlContext = SQLContext(self.sc)
 
-  log4j = sc._jvm.org.apache.log4j
-  log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
+    log4j = self.sc._jvm.org.apache.log4j
+    log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
 
-  dataset = Dataset(sc, sqlContext)
+    self.dataset = Dataset(self.sc, sqlContext)
 
-  # dataset.compute_voxel_features()
-  # g = GraphFrame(dataset.nodes, dataset.edges)
-  # g.vertices.write.parquet(dataset.files('vertices'))
-  # g.edges.write.parquet(dataset.files('edges'))
-
-
-  # Load the vertices and edges back.
-  # sameV = sqlContext.read.parquet(dataset.files('vertices'))
-  # sameE = sqlContext.read.parquet(dataset.files('edges'))
-  # sameG = GraphFrame(sameV, sameE)
+    # self.dataset.compute_voxel_features()
+    # g = GraphFrame(self.dataset.nodes, self.dataset.edges)
+    # g.vertices.write.parquet(self.dataset.files('vertices'))
+    # g.edges.write.parquet(self.dataset.files('edges'))
 
 
-  # g.edges.registerTempTable('edges')
-  # edges = sqlContext.sql("""select e.src, e.dst, e.mean_affinity 
-  #                   from edges e
-  #                   order by abs(0.5 - e.mean_affinity)""").collect()
- 
+    # Load the vertices and edges back.
+    sameV = sqlContext.read.parquet(self.dataset.files('vertices'))
+    sameE = sqlContext.read.parquet(self.dataset.files('edges'))
+    sameG = GraphFrame(sameV, sameE)
 
 
-  # nodes = set()
-  # filtered_edges = []
-  # for edge in edges:
-  #   if tuple(edge.src) not in nodes and tuple(edge.dst) not in nodes:
-  #     filtered_edges.append(edge)
-  #     nodes.add(tuple(edge.src))
-  #     nodes.add(tuple(edge.dst))
-  #     print edges
+  def __del__(self):
+    self.sc.stop()
 
 
-  sc.stop()
-
-
-init()
 def get_edges():
-  pass
+    g.edges.registerTempTable('edges')
+    edges = sqlContext.sql("""select e.src, e.dst, e.mean_affinity 
+                      from edges e
+                      order by abs(0.5 - e.mean_affinity)""").collect()
+   
+
+
+    nodes = set()
+    filtered_edges = []
+    for edge in edges:
+      if tuple(edge.src) not in nodes and tuple(edge.dst) not in nodes:
+        filtered_edges.append(edge)
+        nodes.add(tuple(edge.src))
+        nodes.add(tuple(edge.dst))
+
+    return filter_edges
   # sqlContext.sql("""select e.src, e.dst, e.mean_affinity 
   #                   from edges e
   #                   where not exists (select src from edges where src = e.dst)""").show()

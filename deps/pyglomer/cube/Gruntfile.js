@@ -21,6 +21,9 @@ module.exports = function (grunt) {
     cdnify: 'grunt-google-cdn'
   });
 
+  grunt.loadNpmTasks('grunt-traceur');
+
+
   // Configurable paths for the application
   var appConfig = {
     app: require('./bower.json').appPath || 'app',
@@ -69,6 +72,22 @@ module.exports = function (grunt) {
       }
     },
 
+  traceur: {
+      options: {
+        // traceur options here 
+        experimental: true,
+        copyRuntime: '.tmp/app/scripts/components/traceur-runtime.js',
+        moduleNames: false
+      },
+      custom: {
+        files: [{
+          src: ['<%= yeoman.app %>/**/*.js'],
+          dest: '.tmp/',
+          expand: true
+        }]
+      },
+    },
+
     // The actual grunt server settings
     connect: {
       options: {
@@ -79,7 +98,7 @@ module.exports = function (grunt) {
       },
       livereload: {
         options: {
-          open: true,
+          open: false,
           middleware: function (connect) {
             return [
               connect.static('.tmp'),
@@ -91,7 +110,8 @@ module.exports = function (grunt) {
                 '/app/styles',
                 connect.static('./app/styles')
               ),
-              connect.static(appConfig.app)
+              connect.static(appConfig.app) //              connect.static('.tmp/'+appConfig.app)
+
             ];
           }
         }
@@ -429,6 +449,12 @@ module.exports = function (grunt) {
         cwd: '<%= yeoman.app %>/styles',
         dest: '.tmp/styles/',
         src: '{,*/}*.css'
+      },
+      html: {
+        expand: true,
+        cwd: '<%= yeoman.app %>',
+        dest: '.tmp/',
+        src: '{,*/}*.html'
       }
     },
 
@@ -465,6 +491,8 @@ module.exports = function (grunt) {
     grunt.task.run([
       'clean:server',
       'wiredep',
+      'copy:html',
+      // 'traceur', //TODO
       'concurrent:server',
       'postcss:server',
       'connect:livereload',

@@ -168,10 +168,6 @@ angular.module('cubeApp')
       return this.indexOf(element) > -1;
     }
 
-    srv.init = function() {
-      document.addEventListener('keydown', handleKeyDown, false);
-      document.addEventListener('keyup', handleKeyUp, false);
-    };
 
     function handleKeyDown(e) {
       
@@ -208,6 +204,12 @@ angular.module('cubeApp')
       }
       return false;
     }
+
+    function init() {
+      document.addEventListener('keydown', handleKeyDown, false);
+      document.addEventListener('keyup', handleKeyUp, false);
+    };
+    init();
 
     return srv;
 

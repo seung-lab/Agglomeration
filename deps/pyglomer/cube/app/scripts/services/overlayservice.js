@@ -15,12 +15,6 @@ angular.module('cubeApp')
       circleRadius: null
     };
 
-    srv.init = function() {
-
-      srv.overlayCanvas = document.getElementById('overlay');
-      srv.overlayContext = srv.overlayCanvas.getContext('2d');
-      srv.resize();
-    };
 
     srv.resize = function() {
       
@@ -64,6 +58,14 @@ angular.module('cubeApp')
       srv.overlayContext.fillRect(startOfLine.x, startOfLine.y, 2, -srv.circleRadius * fraction);
       srv.overlayContext.fillRect(startOfLine.x, startOfLine.y - srv.circleRadius - 3, 2, 2);
     };
+
+    function init() {
+
+      srv.overlayCanvas = document.getElementById('overlay');
+      srv.overlayContext = srv.overlayCanvas.getContext('2d');
+      srv.resize();
+    };
+    init();
 
     return srv;
 

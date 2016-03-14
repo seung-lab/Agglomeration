@@ -8,9 +8,10 @@
  * Service in the cubeApp.
  */
 angular.module('cubeApp')
-  .service('controlService', function (meshService, tileService, planeService, overlayService, sceneService) {
+  .service('controlService', function (meshService, tileService, planeService, overlayService, sceneService, keyboardService, taskService, $rootScope) {
     // AngularJS will instantiate a singleton by calling "new" on this function
     var srv = {
+      initialized: false,
       states: { NONE: 1, ROTATE: 2, ANIMATE: 3},
       prev_state: null,
       state: null,
@@ -39,14 +40,15 @@ angular.module('cubeApp')
         snapUpdateEvent: { type: 'snapUpdate' },
         snapCompleteEvent: { type: 'snapComplete' },
         unSnapEvent: { type: 'unSnap' }
-      }
+      },
+      needsRender: true,
+      CUBE_SIZE: new THREE.Vector3(256,256,25),
     };
 
-    srv.dispatchEvent = function() {};
 
-    srv.init = function( object , camera) {
-      srv.object = object;
-      srv.camera = camera;
+    function init() {
+      srv.object = sceneService.pivot;
+      srv.camera = sceneService.camera;
       srv.prev_state = srv.states.NONE;
       srv.state = srv.states.NONE;
       srv.prev_quaternion = srv.object.quaternion.clone()
@@ -56,7 +58,9 @@ angular.module('cubeApp')
       document.addEventListener( 'mousedown', mousedown, false );
       window.addEventListener( 'keydown', keydown, false );
       window.addEventListener( 'keyup', keyup, false );
+      srv.initialized = true;
     };
+    init();
 
     srv.resize = function (width , height) {
       srv.screen.left = 0;
@@ -91,6 +95,11 @@ angular.module('cubeApp')
       };
     }());
 
+
+    function clamp(val, min, max) {
+      return Math.max(Math.min(val, max), min);
+    }
+
     //TODO first rotation attemp does not work
     srv.rotateObject = (function() {
       var axis = new THREE.Vector3();
@@ -102,7 +111,6 @@ angular.module('cubeApp')
             srv.snap_state = srv.snap_states.SHIFT;
           }
 
-          srv.dispatchEvent(srv.events.rotateEvent);
           axis.crossVectors( srv.rotateStart, srv.rotateEnd ).normalize();
           angle *= srv.rotateSpeed;
           quaternion.setFromAxisAngle( axis, angle ).normalize(); // maybe normalize is neccesary
@@ -122,6 +130,7 @@ angular.module('cubeApp')
     }());
 
     srv.update = function () {
+      if (!srv.initialized) { return; }
 
       if (srv.state !== srv.states.ANIMATE) {
         srv.rotateObject(); // TODO, should ignore input as well
@@ -275,7 +284,6 @@ angular.module('cubeApp')
 
       document.addEventListener( 'mousemove', mousemove, false );
       document.addEventListener( 'mouseup', mouseup, false );
-      srv.dispatchEvent( srv.events.startEvent );
     }
 
     function mousemove( event ) {
@@ -301,7 +309,6 @@ angular.module('cubeApp')
 
       document.removeEventListener( 'mousemove', mousemove );
       document.removeEventListener( 'mouseup', mouseup );
-      srv.dispatchEvent( srv.events.endEvent );
 
       if (srv.snap_state === srv.snap_states.SHIFT) {
         srv.snap();
@@ -309,7 +316,98 @@ angular.module('cubeApp')
 
     }
 
-    
+
+    function mousewheel( event ) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      tileDelta(event.wheelDelta / 40);
+    }
+    document.addEventListener('mousewheel', mousewheel, false);
+
+    function tileDelta(delta) {
+      tileService.currentTileFloat = clamp(tileService.currentTileFloat + delta, 1, srv.CUBE_SIZE.z);
+
+      var nextTile = Math.round(tileService.currentTileFloat);
+
+      if (nextTile !== tileService.currentTileIdx) {
+        tileService.setCurrentTile(nextTile);
+      }
+
+      if (sceneService.isZoomed) {
+        sceneService.cube.position.z = - tileService.planes.z.position.z + 0.5;
+      }
+    }
+
+    function handleInput() {
+      if (keyboardService.key('x', keyboardService.PRESSED)) {
+        controlService.animateToPositionAndZoom(new THREE.Vector3(0, 0, 0), 1, true);
+      }
+
+      if (keyboardService.key('z', keyboardService.HELD)) {
+
+          var point = controlService.getPositionOnTileFromMouse();
+          console.log(point);
+          if (point) {
+            controlService.animateToPositionAndZoom(point, 4);
+          }
+      }
+      if (keyboardService.key('shift', keyboardService.PRESSED)) {
+
+        tileService.highlight_segments = false
+        tileService.draw();
+        needsRender = true;
+      }
+      if (keyboardService.key('shift', keyboardService.RELEASED)) {
+
+        tileService.highlight_segments = true
+        tileService.draw();
+        needsRender = true;
+      }
+
+      if (keyboardService.key('y', keyboardService.PRESSED)) {
+        taskService.submitEdgeDecision('y');
+        next();
+        tileService.draw();
+      }
+
+      if (keyboardService.key('n', keyboardService.PRESSED)) {
+        taskService.submitEdgeDecision('n');
+        next();
+        tileService.draw();
+      }
+
+      if (keyboardService.key('m', keyboardService.PRESSED)) {
+        taskService.submitEdgeDecision('m');
+        next();
+        tileService.draw();
+      }
+
+      var td = 0;
+
+      if (keyboardService.key('w', keyboardService.HELD)) {
+        td += 1;
+      }
+
+      if (keyboardService.key('s', keyboardService.HELD)) {
+        td -= 1;
+      }
+
+      if (keyboardService.key('r', keyboardService.PRESSED)) {
+        needsRender = true;
+      }
+
+      tileDelta(td);
+    }
+
+    srv.subscribe = function(scope, callback) {
+      var handler = $rootScope.$on('next-edge-event', callback);
+      scope.$on('$destroy', handler);
+    };
+
+    function next() {
+       $rootScope.$emit('next-edge-event');
+    }
 
     srv.snap = function () {
 
@@ -436,6 +534,21 @@ angular.module('cubeApp')
       }
     }
 
+    var needsRender = true
+    function animate() {
+      keyboardService.pollInput();
+      handleInput();
 
+      TWEEN.update();
+      srv.update();
+
+      if (needsRender) {
+        // srv.needsRender = false;
+        sceneService.render();
+      }
+
+      requestAnimationFrame(animate); // TODO where should this go in the function (beginning, end?)
+    }
+    animate();
     return srv;
   });

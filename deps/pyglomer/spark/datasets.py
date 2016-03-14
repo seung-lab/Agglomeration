@@ -7,7 +7,7 @@ from itertools import product
 from collections import namedtuple
 from pyspark.sql.types import *
 
-class Dataset:
+class Dataset(object):
 
   def __init__(self, sc, sqlContext):
     """
@@ -17,6 +17,7 @@ class Dataset:
     self.sqlContext = sqlContext
     self.nodes =  None
     self.chunks = None
+    self._get_subvolumes()
 
 
   def _import_hdf5(self, chunk_size=128, overlap=1 ):
@@ -37,7 +38,8 @@ class Dataset:
       end =  np.minimum((np.array(chunk) + 1)* chunk_size + overlap, shape)
       chunk_overlap = (end == shape) * overlap
 
-      files = { 'machine_labels': self.files('machine_labels'),
+      files = { 'channel': self.files('channel'),
+                'machine_labels': self.files('machine_labels'),
                 'human_labels': self.files('human_labels'),
                 'affinities': self.files('affinities')}
       it = ImportTask( chunk , start, end , chunk_overlap , files)
@@ -48,10 +50,10 @@ class Dataset:
 
   @staticmethod
   def _get_subvolume( it ):
-    SubVolume = namedtuple('SubVolume', ['chunk', 'machine_labels','human_labels','affinities', 'start', 'end' , 'overlap']) 
+    SubVolume = namedtuple('SubVolume', ['chunk','channel', 'machine_labels','human_labels','affinities', 'start', 'end' , 'overlap']) 
 
     data = {}
-    for h5file in ['machine_labels', 'human_labels' , 'affinities']:
+    for h5file in ['channel','machine_labels', 'human_labels' , 'affinities']:
       f = h5py.File(it.files[h5file],'r')
       if 'main' not in f:
         raise ImportError("Main dataset doesn't exists")
@@ -69,6 +71,7 @@ class Dataset:
       data[h5file] = chunk_data
 
     sv = SubVolume(it.chunk_pos,
+                   data['channel'],
                    data['machine_labels'],
                    data['human_labels'],
                    data['affinities'],
@@ -81,18 +84,17 @@ class Dataset:
     
     volumes = self._import_hdf5()
     volumes = self.sc.parallelize(volumes)
-    subvolumes = volumes.map(self._get_subvolume)
-    self.chunks = subvolumes.map(lambda subvolume: (subvolume.chunk, (subvolume.channels, subvolume.machine_labels)))
+    self.subvolumes = volumes.map(self._get_subvolume)
+    self.chunks = self.subvolumes.map(lambda subvolume: (subvolume.chunk, (subvolume.channel, subvolume.machine_labels))).cache()
 
-    return subvolumes
 
   def compute_voxel_features(self):
+    
     def to_row( data ):
       return (list(map(int,data[0])), str(data[1])) 
 
-    subvolumes = self._get_subvolumes()
     cr = features.ContactRegion()
-    adjcency = subvolumes.flatMap(cr.map).reduceByKey(cr.reduce)
+    adjcency = self.subvolumes.flatMap(cr.map).reduceByKey(cr.reduce)
     edges = []
     for edge, voxels in adjcency.toLocalIterator():
         mean = float( np.mean([pair[1] for pair in voxels]) )
@@ -101,12 +103,14 @@ class Dataset:
 
     self.edges = self.sqlContext.createDataFrame(edges, ['src','dst','mean_affinity'])
     ss = features.SegmentSize()
-    sizes = subvolumes.flatMap(ss.map).reduceByKey(ss.reduce).map(to_row).toDF(['id','sizes'])
+    sizes = self.subvolumes.flatMap(ss.map).reduceByKey(ss.reduce).map(to_row).toDF(['id','sizes'])
+    self.nodes = sizes
 
-    m = features.Mesh()
-    meshes = subvolumes.flatMap(m.map).reduceByKey(m.reduce).map(to_row).toDF(['id','meshes'])
-    nodes = sizes.join(meshes, 'id')
-    self.nodes = nodes
+
+    # m = features.Mesh()
+    # meshes = self.subvolumes.flatMap(m.map).reduceByKey(m.reduce).map(to_row).toDF(['id','meshes'])
+    # nodes = sizes.join(meshes, 'id')
+    # self.nodes = nodes
 
     # nodes.saveAsTable( tableName='nodes', mode='overwrite', path=self.files('nodes') )
     #nx.write_gpickle(self.g.g , self.files('graph'))
@@ -132,9 +136,10 @@ class Dataset:
     else:
 
       files = {
-        'machine_labels': '/usr/people/it2/seungmount/Omni/TracerTasks/iarpa_experiments/exp_2/machine_labels.h5',
-        'human_labels': '/usr/people/it2/seungmount/Omni/TracerTasks/iarpa_experiments/exp_2/machine_labels.h5',
-        'affinities': '/usr/people/it2/seungmount/Omni/TracerTasks/iarpa_experiments/exp_2/affinities.h5',
+        'channel': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/channel.h5',
+        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/machine_labels.h5',
+        'human_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/machine_labels.h5',
+        'affinities': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/affinities.h5',
         'vertices': './pyglomer/spark/tmp/vertices',
         'edges': './pyglomer/spark/tmp/edges'
       }

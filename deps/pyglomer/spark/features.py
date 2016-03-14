@@ -88,7 +88,7 @@ class Mesh(VoxelFeature):
       if len(vertices) == 0:
         continue
 
-      vertices += vol.start * 2.0 #translate mesh
+      vertices += np.asarray(vol.start).astype(np.uint16) * 2#translate mesh
       meshes[(seg_id,)] = mesh.get_adjacent( vertices, triangles )
     
     return meshes.iteritems()
