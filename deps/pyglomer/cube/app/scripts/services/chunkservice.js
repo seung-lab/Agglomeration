@@ -12,8 +12,6 @@ angular.module('cubeApp')
     // AngularJS will instantiate a singleton by calling "new" on this function
 
     var srv = {
-      CHUNK_SIZE: 128,
-      CUBE_SIZE: 256,
       server: 'http://localhost:8888',
     };
 
@@ -60,8 +58,6 @@ angular.module('cubeApp')
 
     srv.load = function (tile_idx , data, type, x, y, callback) {
 
-      var chunk = y * 2 + x;
-
       convertBase64ImgToImage(data, function (image) {
       
 
@@ -80,14 +76,14 @@ angular.module('cubeApp')
           }
         }
 
-        callback(tile_idx, type, chunk, image);
+        callback(tile_idx, type, x, y , image);
 
       });
     };
 
 
     function rgbToSegIdOffset(rgb, offset) {
-      return rgb[offset] + rgb[offset+1] * 256 + rgb[offset+2] * 256 * 256;
+      return rgb[offset] + rgb[offset+1] * srv.CHUNK_SIZE + rgb[offset+2] * srv.CHUNK_SIZE* srv.CHUNK_SIZE;
     }
 
     return srv;

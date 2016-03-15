@@ -42,7 +42,6 @@ angular.module('cubeApp')
         unSnapEvent: { type: 'unSnap' }
       },
       needsRender: true,
-      CUBE_SIZE: new THREE.Vector3(256,256,25),
     };
 
 
@@ -326,7 +325,7 @@ angular.module('cubeApp')
     document.addEventListener('mousewheel', mousewheel, false);
 
     function tileDelta(delta) {
-      tileService.currentTileFloat = clamp(tileService.currentTileFloat + delta, 1, srv.CUBE_SIZE.z);
+      tileService.currentTileFloat = clamp(tileService.currentTileFloat + delta, 1, tileService.CUBE_SIZE.z);
 
       var nextTile = Math.round(tileService.currentTileFloat);
 
@@ -341,15 +340,15 @@ angular.module('cubeApp')
 
     function handleInput() {
       if (keyboardService.key('x', keyboardService.PRESSED)) {
-        controlService.animateToPositionAndZoom(new THREE.Vector3(0, 0, 0), 1, true);
+        srv.animateToPositionAndZoom(new THREE.Vector3(0, 0, 0), 1, true);
       }
 
       if (keyboardService.key('z', keyboardService.HELD)) {
 
-          var point = controlService.getPositionOnTileFromMouse();
+          var point = srv.getPositionOnTileFromMouse();
           console.log(point);
           if (point) {
-            controlService.animateToPositionAndZoom(point, 4);
+            srv.animateToPositionAndZoom(point, 4);
           }
       }
       if (keyboardService.key('shift', keyboardService.PRESSED)) {

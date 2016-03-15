@@ -1,11 +1,11 @@
-var voxelNormal = new Int8Array(256 * 256 * 256 * 3);
-var byteBuffer = new ArrayBuffer(256 * 256 * 256);
-var counts = new Uint8Array(byteBuffer);
 
 
 function generateGeoForSegment(segId, pixelToSegId) {
-  var start = window.performance.now();
 
+  console.log( segId );
+  var start = window.performance.now();
+  var byteBuffer = new ArrayBuffer(256 * 256 * 256);
+  var counts = new Uint8Array(byteBuffer);
   var partCount = 0;
 
   voxelNormal = new Int8Array(256 * 256 * 256 * 3);
@@ -373,9 +373,6 @@ function generateGeoForSegment(segId, pixelToSegId) {
 
   // particleGeo.verticesNeedUpdate = true;
 }
-
-
-
 /////////////////////////////////////
 // Marching cubes lookup tables
 /////////////////////////////////////
@@ -419,269 +416,12 @@ function generateGeoForSegment(segId, pixelToSegId) {
 // 0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0 ] );
 
 var triCountTable = new Uint8Array([
-  0,
-  1,
-  1,
-  2,
-  1,
-  2,
-  2,
-  3,
-  1,
-  2,
-  2,
-  3,
-  2,
-  3,
-  3,
-  2,
-  1,
-  2,
-  2,
-  3,
-  2,
-  3,
-  3,
-  4,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  3,
-  1,
-  2,
-  2,
-  3,
-  2,
-  3,
-  3,
-  4,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  3,
-  2,
-  3,
-  3,
-  2,
-  3,
-  4,
-  4,
-  3,
-  3,
-  4,
-  4,
-  3,
-  4,
-  5,
-  5,
-  2,
-  1,
-  2,
-  2,
-  3,
-  2,
-  3,
-  3,
-  4,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  3,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  5,
-  3,
-  4,
-  4,
-  5,
-  4,
-  5,
-  5,
-  4,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  2,
-  3,
-  3,
-  4,
-  4,
-  5,
-  4,
-  5,
-  3,
-  2,
-  3,
-  4,
-  4,
-  3,
-  4,
-  5,
-  3,
-  2,
-  4,
-  5,
-  5,
-  4,
-  5,
-  2,
-  4,
-  1,
-  1,
-  2,
-  2,
-  3,
-  2,
-  3,
-  3,
-  4,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  3,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  5,
-  3,
-  2,
-  4,
-  3,
-  4,
-  3,
-  5,
-  2,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  5,
-  3,
-  4,
-  4,
-  5,
-  4,
-  5,
-  5,
-  4,
-  3,
-  4,
-  4,
-  3,
-  4,
-  5,
-  5,
-  4,
-  4,
-  3,
-  5,
-  2,
-  5,
-  4,
-  2,
-  1,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  5,
-  3,
-  4,
-  4,
-  5,
-  2,
-  3,
-  3,
-  2,
-  3,
-  4,
-  4,
-  5,
-  4,
-  5,
-  5,
-  2,
-  4,
-  3,
-  5,
-  4,
-  3,
-  2,
-  4,
-  1,
-  3,
-  4,
-  4,
-  5,
-  4,
-  5,
-  3,
-  4,
-  4,
-  5,
-  5,
-  2,
-  3,
-  4,
-  2,
-  1,
-  2,
-  3,
-  3,
-  2,
-  3,
-  4,
-  2,
-  1,
-  3,
-  2,
-  4,
-  1,
-  2,
-  1,
-  1,
-  0]);
-
-/*
-1, -1, 1
-
-
-
-*/
+  0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4,
+  3, 4, 4, 3, 2, 3, 3, 2, 3, 4, 4, 3, 3, 4, 4, 3, 4, 5, 5, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5,
+  3, 4, 4, 5, 4, 5, 5, 4, 2, 3, 3, 4, 3, 4, 2, 3, 3, 4, 4, 5, 4, 5, 3, 2, 3, 4, 4, 3, 4, 5, 3, 2, 4, 5, 5, 4, 5, 2, 4, 1, 1, 2, 2, 3,
+  2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5, 3, 2, 4, 3, 4, 3, 5, 2, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 4,
+  3, 4, 4, 3, 4, 5, 5, 4, 4, 3, 5, 2, 5, 4, 2, 1, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 2, 3, 3, 2, 3, 4, 4, 5, 4, 5, 5, 2, 4, 3, 5, 4,
+  3, 2, 4, 1, 3, 4, 4, 5, 4, 5, 3, 4, 4, 5, 5, 2, 3, 4, 2, 1, 2, 3, 3, 2, 3, 4, 2, 1, 3, 2, 4, 1, 2, 1, 1, 0]);
 
 var triTable = new Int32Array( [
 - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
@@ -943,28 +683,28 @@ var triTable = new Int32Array( [
 
 
 // debugging
-function drawNormal(x1, y1, z1, x2, y2, z2) {
-  var material = new THREE.LineBasicMaterial({
-    color: 0xffff00
-  });
+// function drawNormal(x1, y1, z1, x2, y2, z2) {
+//   var material = new THREE.LineBasicMaterial({
+//     color: 0xffff00
+//   });
 
-  var vertPos = new THREE.Vector3( x1, y1, z1 );
-
-
-  var normal = new THREE.Vector3(x2, y2, z2);
-
-    // console.log('normal', new THREE.Vector3(x1 * 256 - 0.5, y1 * 256 - 0.5, z1 * 256 - 0.5), normal);
-
-  normal.setLength(2/256);
+//   var vertPos = new THREE.Vector3( x1, y1, z1 );
 
 
-  var geometry = new THREE.Geometry();
-  geometry.vertices.push(
-    vertPos,
-    normal.add(vertPos)
-  );
+//   var normal = new THREE.Vector3(x2, y2, z2);
 
-  var line = new THREE.Line(geometry, material);
+//     // console.log('normal', new THREE.Vector3(x1 * 256 - 0.5, y1 * 256 - 0.5, z1 * 256 - 0.5), normal);
 
-  cubeContents.add(line);
-}
+//   normal.setLength(2/256);
+
+
+//   var geometry = new THREE.Geometry();
+//   geometry.vertices.push(
+//     vertPos,
+//     normal.add(vertPos)
+//   );
+
+//   var line = new THREE.Line(geometry, material);
+
+//   cubeContents.add(line);
+// }

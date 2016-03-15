@@ -13,22 +13,11 @@ angular.module('cubeApp')
   .service('meshService', function () {
     // AngularJS will instantiate a singleton by calling "new" on this function
     var srv = {
-      CHUNKS:[
-              [0,0,0],
-              [1,0,0],
-              [0,1,0],
-              [1,1,0],
-              [0,0,1],
-              [1,0,1],
-              [0,1,1],
-              [1,1,1]
-            ],
       cache: {},
       server: 'http://localhost:8888',
       transparent: false,
       opacity: 1.0,
       meshes: new THREE.Object3D(),
-      pixelToSegId: new Int32Array(256 * 256 * 256)  
     };
  
     // sets the opacity for all segments
@@ -54,10 +43,10 @@ angular.module('cubeApp')
       }
     };
 
-    function init() {
+    srv.init = function() {
       srv.meshes.position.set(-0.5, -0.5, -0.5);
+      srv.pixelToSegId = new Int32Array(srv.CUBE_SIZE.x * srv.CUBE_SIZE.y * srv.CUBE_SIZE.z);  
     }
-    init();
 
     function get_mesh( volume_id , segment_id,  color, callback ) {
 
@@ -220,8 +209,8 @@ angular.module('cubeApp')
 
     srv.displayEdge = function(volume_id, edge, callback) {
       
-      srv.displayMesh ( volume_id, edge[0], 'red' , callback);
-      srv.displayMesh ( volume_id, edge[1], 'blue' , callback);
+      srv.displayMesh ( volume_id, edge[0][0], 'red' , callback);
+      srv.displayMesh ( volume_id, edge[1][1], 'blue' , callback);
     };
 
     srv.displayMesh = function(volume_id, segment_id, color ,callback) {

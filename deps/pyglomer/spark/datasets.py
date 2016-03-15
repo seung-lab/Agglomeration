@@ -103,7 +103,7 @@ class Dataset(object):
 
     self.edges = self.sqlContext.createDataFrame(edges, ['src','dst','mean_affinity'])
     ss = features.SegmentSize()
-    sizes = self.subvolumes.flatMap(ss.map).reduceByKey(ss.reduce).map(to_row).toDF(['id','sizes'])
+    sizes = self.subvolumes.flatMap(ss.map).reduceByKey(ss.reduce).map(to_row).toDF(['id','size'])
     self.nodes = sizes
 
 

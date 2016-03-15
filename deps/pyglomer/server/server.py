@@ -17,6 +17,7 @@ channel = None
 meshes = dict()
 
 edge_number = 0
+edges = None
 spark = None
 
 def get_subtile(volume ,x, y, z, overlap = 0 ):
@@ -74,8 +75,11 @@ class EdgesHandler(tornado.web.RequestHandler):
 
     global edge_number
     edges = reponse_cache[volume_id]
+    print  edges[edge_number]
     return_json(self, edges[edge_number])
     edge_number += 1
+
+    return
 
   def post(self, volume_id):
     print json.loads(self.request.body)
@@ -121,4 +125,5 @@ def make_app():
 if __name__ == '__main__':
   app = make_app()
   app.listen(8888)
+  # tornado.ioloop.IOLoop.current().set_blocking_log_threshold(5)
   tornado.ioloop.IOLoop.current().start()

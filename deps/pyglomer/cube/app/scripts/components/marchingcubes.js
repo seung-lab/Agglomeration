@@ -1,40 +1,27 @@
-var voxelNormal = new Int8Array(256 * 256 * 256 * 3);
-var byteBuffer = new ArrayBuffer(256 * 256 * 256);
-var counts = new Uint8Array(byteBuffer);
-
-
 function generateGeoForSegment(segId, pixelToSegId) {
-  var start = window.performance.now();
+  console.log(segId)
+  var X_DIM = 256;
+  var Y_DIM = 256;
+  var Z_DIM = 256;
 
+  var start = window.performance.now();
+  var byteBuffer = new ArrayBuffer(X_DIM * Y_DIM * Z_DIM);
+  var counts = new Uint8Array(byteBuffer);
   var partCount = 0;
 
-  voxelNormal = new Int8Array(256 * 256 * 256 * 3);
+  voxelNormal = new Int8Array(X_DIM * Y_DIM * Z_DIM * 3); // normal has x y and z component
 
-  // var voxels = [8421504, 8421504+1, 8421504+1+256, 8421504+1+256+256*256];
 
-  for (var i = 256 * 256 * 256 - 1; i >= 0; --i) {
-    if (pixelToSegId[i] === segId) {//voxels.indexOf(i) !== -1) { // pixelToSegId[i] === segId) {
-      // var z = Math.floor(i / (256 * 256));
-      // var y = Math.floor((i - z * 256 * 256) / 256);
-      // var x = i % 256;
+  var close = 10;
+  var med = 7;
+  var far = 6; 
 
-      // z += 0.5;
-      // y += 0.5;
-      // x += 0.5;
+  var xOff = 1;
+  var yOff = X_DIM;
+  var zOff = X_DIM * Y_DIM;
 
-      // particleGeo.vertices[partCount].set(x / 256, y / 256, z / 256);
-
-      // partCount++;
-
-      var close = 10;//10;
-      var med = 7;//7; (1 / sqrt(2))
-      var far = 6; // (1 / sqrt(3))
-      // var morefar = 0;
-      // var veryFar = 0;
-
-      var xOff = 1;
-      var yOff = 256;
-      var zOff = 256 * 256;
+  for (var i = X_DIM * Y_DIM * Z_DIM - 1; i >= 0; --i) {
+    if (pixelToSegId[i] === segId) {
 
       // this is faster
       voxelNormal[(i + xOff) * 3] += close;
@@ -44,21 +31,7 @@ function generateGeoForSegment(segId, pixelToSegId) {
       voxelNormal[(i + zOff) * 3 + 2] += close;
       voxelNormal[(i - zOff) * 3 + 2] -= close;
 
-      // voxelNormal[(i + 2) * 3] += morefar;
-      // voxelNormal[(i - 2) * 3] -= morefar;
-      // voxelNormal[(i + 512) * 3 + 1] += morefar;
-      // voxelNormal[(i - 512) * 3 + 1] -= morefar;
-      // voxelNormal[(i + (256 * 256) * 2) * 3 + 2] += morefar;
-      // voxelNormal[(i - (256 * 256) * 2) * 3 + 2] -= morefar;
-
-      // voxelNormal[(i + 3) * 3] += veryFar;
-      // voxelNormal[(i - 3) * 3] -= veryFar;
-      // voxelNormal[(i + 768) * 3 + 1] += veryFar;
-      // voxelNormal[(i - 768) * 3 + 1] -= veryFar;
-      // voxelNormal[(i + (256 * 256) * 3) * 3 + 2] += veryFar;
-      // voxelNormal[(i - (256 * 256) * 3) * 3 + 2] -= veryFar;
-
-      // right down (+ +)
+       // right down (+ +)
       voxelNormal[(i + xOff + yOff)*3] += med; 
       voxelNormal[(i + xOff + yOff)*3+1] += med;
 
@@ -114,22 +87,21 @@ function generateGeoForSegment(segId, pixelToSegId) {
       voxelNormal[(i + xOff - yOff - zOff)*3+1] -= far;
       voxelNormal[(i + xOff - yOff - zOff)*3+2] -= far;
 
-      counts[i                      ] |= 1;   // 0
-      counts[i - 1                  ] |= 2;   // 1
-      counts[i -     256            ] |= 16;  // 4
-      counts[i - 1 - 256            ] |= 32;  // 5
-      counts[i -           256 * 256] |= 8;   // 3
-      counts[i - 1 -       256 * 256] |= 4;   // 2
-      counts[i -     256 - 256 * 256] |= 128; // 7
-      counts[i - 1 - 256 - 256 * 256] |= 64;  // 6
+      counts[i                     ] |= 1;   // 0
+      counts[i - xOff              ] |= 2;   // 1
+      counts[i -        yOff       ] |= 16;  // 4
+      counts[i - xOff - yOff       ] |= 32;  // 5
+      counts[i -               zOff] |= 8;   // 3
+      counts[i - xOff -        zOff] |= 4;   // 2
+      counts[i -        yOff - zOff] |= 128; // 7
+      counts[i - xOff - yOff - zOff] |= 64;  // 6
     }
   }
 
-  // particleGeo.verticesNeedUpdate = true;
 
   var triCount = 0;
   
-  for (var i = 256 * 256 * 256 - 1; i >= 0; --i) {
+  for (var i = X_DIM * Y_DIM * Z_DIM - 1; i >= 0; --i) {
     triCount += triCountTable[counts[i]];
   }
 
@@ -139,7 +111,6 @@ function generateGeoForSegment(segId, pixelToSegId) {
 
   var meshVertices = new Float32Array(triCount * 3 * 3);
 
-  // var meshPotentialNormals = new Float32Array(256 * 256 * 256 * 3 * 3)
 
   var meshNormals = new Float32Array(triCount * 3 * 3);
 
@@ -150,7 +121,7 @@ function generateGeoForSegment(segId, pixelToSegId) {
 
   var dbg = 0;
 
-  for (var i = 256 * 256 * 256 - 1; i >= 0; --i) {
+  for (var i = X_DIM * Y_DIM * Z_DIM - 1; i >= 0; --i) {
     var cubeIndex = counts[i];
     counts[i] = 0;
     
@@ -158,14 +129,9 @@ function generateGeoForSegment(segId, pixelToSegId) {
 
     if (indvTriCount !== 0) {
 
-      var z = Math.floor(i / (256 * 256));
-      var y = Math.floor((i - z * 256 * 256) / 256);
-      var x = i % 256;
-
-      // var wireframe = new THREE.BoxHelper(voxelShape);
-      // wireframe.position.set((x + 1) / 256, (y + 1) / 256, (z + 1) / 256);
-      // wireframe.material.color = new THREE.Color('white');
-      // cubeContents.add(wireframe);
+      var z = Math.floor(i / (X_DIM * Y_DIM));
+      var y = Math.floor((i - z * X_DIM * Y_DIM) / X_DIM);
+      var x = i % X_DIM;
 
       z += 0.5;
       y += 0.5;
@@ -174,13 +140,13 @@ function generateGeoForSegment(segId, pixelToSegId) {
       var no = i*3;
 
       var n0x = voxelNormal[no]; var n0y = voxelNormal[no+1]; var n0z = voxelNormal[no+2];
-      var n1x = voxelNormal[no+(1)*3]; var n1y = voxelNormal[no+(1)*3+1]; var n1z = voxelNormal[no+(1)*3+2];
-      var n2x = voxelNormal[no+(256*256+1)*3]; var n2y = voxelNormal[no+(256*256+1)*3+1]; var n2z = voxelNormal[no+(256*256+1)*3+2];
-      var n3x = voxelNormal[no+(256*256)*3]; var n3y = voxelNormal[no+(256*256)*3+1]; var n3z = voxelNormal[no+(256*256)*3+2];
-      var n4x = voxelNormal[no+(256)*3]; var n4y = voxelNormal[no+(256)*3+1]; var n4z = voxelNormal[no+(256)*3+2];
-      var n5x = voxelNormal[no+(256+1)*3]; var n5y = voxelNormal[no+(256+1)*3+1]; var n5z = voxelNormal[no+(256+1)*3+2];
-      var n6x = voxelNormal[no+(256*256+256+1)*3]; var n6y = voxelNormal[no+(256*256+256+1)*3+1]; var n6z = voxelNormal[no+(256*256+256+1)*3+2];
-      var n7x = voxelNormal[no+(256*256+256)*3]; var n7y = voxelNormal[no+(256*256+256)*3+1]; var n7z = voxelNormal[no+(256*256+256)*3+2];
+      var n1x = voxelNormal[no+(xOff)*3]; var n1y = voxelNormal[no+(xOff)*3+1]; var n1z = voxelNormal[no+(xOff)*3+2];
+      var n2x = voxelNormal[no+(zOff+xOff)*3]; var n2y = voxelNormal[no+(zOff+xOff)*3+1]; var n2z = voxelNormal[no+(zOff+xOff)*3+2];
+      var n3x = voxelNormal[no+(zOff)*3]; var n3y = voxelNormal[no+(zOff)*3+1]; var n3z = voxelNormal[no+(zOff)*3+2];
+      var n4x = voxelNormal[no+(yOff)*3]; var n4y = voxelNormal[no+(yOff)*3+1]; var n4z = voxelNormal[no+(yOff)*3+2];
+      var n5x = voxelNormal[no+(yOff+xOff)*3]; var n5y = voxelNormal[no+(yOff+xOff)*3+1]; var n5z = voxelNormal[no+(yOff+xOff)*3+2];
+      var n6x = voxelNormal[no+(zOff+yOff+xOff)*3]; var n6y = voxelNormal[no+(zOff+yOff+xOff)*3+1]; var n6z = voxelNormal[no+(zOff+yOff+xOff)*3+2];
+      var n7x = voxelNormal[no+(zOff+yOff)*3]; var n7y = voxelNormal[no+(zOff+yOff)*3+1]; var n7z = voxelNormal[no+(zOff+yOff)*3+2];
 
 
       // 0 and 1
@@ -303,54 +269,39 @@ function generateGeoForSegment(segId, pixelToSegId) {
         var vert2 = triTable[j + 1] * 3;
         var vert3 = triTable[j + 2] * 3;
 
-        // console.log('tri', vert1 / 3, vert2 / 3, vert3 / 3);
 
         j+=3;
 
-        meshVertices[startIdx] = vertBuffer[vert1] / 256;
-        meshVertices[startIdx+1] = vertBuffer[vert1+1] / 256;
-        meshVertices[startIdx+2] = vertBuffer[vert1+2] / 256;
+        meshVertices[startIdx] = vertBuffer[vert1] / X_DIM;
+        meshVertices[startIdx+1] = vertBuffer[vert1+1] / Y_DIM;
+        meshVertices[startIdx+2] = vertBuffer[vert1+2] / Z_DIM;
 
         meshNormals[startIdx] = normBuffer[vert1];
         meshNormals[startIdx+1] = normBuffer[vert1+1];
         meshNormals[startIdx+2] = normBuffer[vert1+2];
 
-        // drawNormal(meshVertices[startIdx], meshVertices[startIdx+1], meshVertices[startIdx+2], meshNormals[startIdx], meshNormals[startIdx+1], meshNormals[startIdx+2]);
 
-        meshVertices[startIdx+3] = vertBuffer[vert2] / 256;
-        meshVertices[startIdx+4] = vertBuffer[vert2+1] / 256;
-        meshVertices[startIdx+5] = vertBuffer[vert2+2] / 256;
+        meshVertices[startIdx+3] = vertBuffer[vert2] / X_DIM;
+        meshVertices[startIdx+4] = vertBuffer[vert2+1] / Y_DIM;
+        meshVertices[startIdx+5] = vertBuffer[vert2+2] / Z_DIM;
 
         meshNormals[startIdx+3] =  normBuffer[vert2];
         meshNormals[startIdx+4] = normBuffer[vert2+1];
         meshNormals[startIdx+5] = normBuffer[vert2+2];
 
-        // drawNormal(meshVertices[startIdx+3], meshVertices[startIdx+4], meshVertices[startIdx+5], meshNormals[startIdx+3], meshNormals[startIdx+4], meshNormals[startIdx+5]);
 
-        meshVertices[startIdx+6] = vertBuffer[vert3] / 256;
-        meshVertices[startIdx+7] = vertBuffer[vert3+1] / 256;
-        meshVertices[startIdx+8] = vertBuffer[vert3+2] / 256;
+        meshVertices[startIdx+6] = vertBuffer[vert3] / X_DIM;
+        meshVertices[startIdx+7] = vertBuffer[vert3+1] / Y_DIM;
+        meshVertices[startIdx+8] = vertBuffer[vert3+2] / Z_DIM;
 
         meshNormals[startIdx+6] =  normBuffer[vert3];
         meshNormals[startIdx+7] = normBuffer[vert3+1];
         meshNormals[startIdx+8] = normBuffer[vert3+2];
 
-        // drawNormal(meshVertices[startIdx+6], meshVertices[startIdx+7], meshVertices[startIdx+8], meshNormals[startIdx+6], meshNormals[startIdx+7], meshNormals[startIdx+8]); 
         curTriCount++;
       }
 
-      // console.log('stop');
-
-      // dbg++;
-
-      // if (dbg === 2) {
-      //   break;
-      // }
-
-      // if (curTriCount > triCount) {
-      //   break;
-      // }
-    }
+   }
   }
 
   var segGeo = new THREE.BufferGeometry();
@@ -365,323 +316,18 @@ function generateGeoForSegment(segId, pixelToSegId) {
   console.log('triCount', triCount);
 
   return segGeo;
-
-  // for (var i = Math.min(triCount * 3 - 1, maxVoxelCount); i > 0; --i) {
-  //   particleGeo.vertices[partCount].set(meshVertices[i*3] + meshNormals[i*3] / 512, meshVertices[i*3+1] + meshNormals[i*3+1] / 512, meshVertices[i*3+2] + meshNormals[i*3+2] / 512);
-  //   partCount++;
-  // }
-
-  // particleGeo.verticesNeedUpdate = true;
 }
-
-
-
 /////////////////////////////////////
 // Marching cubes lookup tables
 /////////////////////////////////////
 
-// These tables are straight from Paul Bourke's page:
-// http://local.wasp.uwa.edu.au/~pbourke/geometry/polygonise/
-// who in turn got them from Cory Gene Bloyd.
-
-// var edgeTable = new Int32Array( [
-// 0x0, 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
-// 0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
-// 0x190, 0x99, 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
-// 0x99c, 0x895, 0xb9f, 0xa96, 0xd9a, 0xc93, 0xf99, 0xe90,
-// 0x230, 0x339, 0x33, 0x13a, 0x636, 0x73f, 0x435, 0x53c,
-// 0xa3c, 0xb35, 0x83f, 0x936, 0xe3a, 0xf33, 0xc39, 0xd30,
-// 0x3a0, 0x2a9, 0x1a3, 0xaa, 0x7a6, 0x6af, 0x5a5, 0x4ac,
-// 0xbac, 0xaa5, 0x9af, 0x8a6, 0xfaa, 0xea3, 0xda9, 0xca0,
-// 0x460, 0x569, 0x663, 0x76a, 0x66, 0x16f, 0x265, 0x36c,
-// 0xc6c, 0xd65, 0xe6f, 0xf66, 0x86a, 0x963, 0xa69, 0xb60,
-// 0x5f0, 0x4f9, 0x7f3, 0x6fa, 0x1f6, 0xff, 0x3f5, 0x2fc,
-// 0xdfc, 0xcf5, 0xfff, 0xef6, 0x9fa, 0x8f3, 0xbf9, 0xaf0,
-// 0x650, 0x759, 0x453, 0x55a, 0x256, 0x35f, 0x55, 0x15c,
-// 0xe5c, 0xf55, 0xc5f, 0xd56, 0xa5a, 0xb53, 0x859, 0x950,
-// 0x7c0, 0x6c9, 0x5c3, 0x4ca, 0x3c6, 0x2cf, 0x1c5, 0xcc,
-// 0xfcc, 0xec5, 0xdcf, 0xcc6, 0xbca, 0xac3, 0x9c9, 0x8c0,
-// 0x8c0, 0x9c9, 0xac3, 0xbca, 0xcc6, 0xdcf, 0xec5, 0xfcc,
-// 0xcc, 0x1c5, 0x2cf, 0x3c6, 0x4ca, 0x5c3, 0x6c9, 0x7c0,
-// 0x950, 0x859, 0xb53, 0xa5a, 0xd56, 0xc5f, 0xf55, 0xe5c,
-// 0x15c, 0x55, 0x35f, 0x256, 0x55a, 0x453, 0x759, 0x650,
-// 0xaf0, 0xbf9, 0x8f3, 0x9fa, 0xef6, 0xfff, 0xcf5, 0xdfc,
-// 0x2fc, 0x3f5, 0xff, 0x1f6, 0x6fa, 0x7f3, 0x4f9, 0x5f0,
-// 0xb60, 0xa69, 0x963, 0x86a, 0xf66, 0xe6f, 0xd65, 0xc6c,
-// 0x36c, 0x265, 0x16f, 0x66, 0x76a, 0x663, 0x569, 0x460,
-// 0xca0, 0xda9, 0xea3, 0xfaa, 0x8a6, 0x9af, 0xaa5, 0xbac,
-// 0x4ac, 0x5a5, 0x6af, 0x7a6, 0xaa, 0x1a3, 0x2a9, 0x3a0,
-// 0xd30, 0xc39, 0xf33, 0xe3a, 0x936, 0x83f, 0xb35, 0xa3c,
-// 0x53c, 0x435, 0x73f, 0x636, 0x13a, 0x33, 0x339, 0x230,
-// 0xe90, 0xf99, 0xc93, 0xd9a, 0xa96, 0xb9f, 0x895, 0x99c,
-// 0x69c, 0x795, 0x49f, 0x596, 0x29a, 0x393, 0x99, 0x190,
-// 0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
-// 0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0 ] );
-
 var triCountTable = new Uint8Array([
-  0,
-  1,
-  1,
-  2,
-  1,
-  2,
-  2,
-  3,
-  1,
-  2,
-  2,
-  3,
-  2,
-  3,
-  3,
-  2,
-  1,
-  2,
-  2,
-  3,
-  2,
-  3,
-  3,
-  4,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  3,
-  1,
-  2,
-  2,
-  3,
-  2,
-  3,
-  3,
-  4,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  3,
-  2,
-  3,
-  3,
-  2,
-  3,
-  4,
-  4,
-  3,
-  3,
-  4,
-  4,
-  3,
-  4,
-  5,
-  5,
-  2,
-  1,
-  2,
-  2,
-  3,
-  2,
-  3,
-  3,
-  4,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  3,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  5,
-  3,
-  4,
-  4,
-  5,
-  4,
-  5,
-  5,
-  4,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  2,
-  3,
-  3,
-  4,
-  4,
-  5,
-  4,
-  5,
-  3,
-  2,
-  3,
-  4,
-  4,
-  3,
-  4,
-  5,
-  3,
-  2,
-  4,
-  5,
-  5,
-  4,
-  5,
-  2,
-  4,
-  1,
-  1,
-  2,
-  2,
-  3,
-  2,
-  3,
-  3,
-  4,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  3,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  5,
-  3,
-  2,
-  4,
-  3,
-  4,
-  3,
-  5,
-  2,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  5,
-  3,
-  4,
-  4,
-  5,
-  4,
-  5,
-  5,
-  4,
-  3,
-  4,
-  4,
-  3,
-  4,
-  5,
-  5,
-  4,
-  4,
-  3,
-  5,
-  2,
-  5,
-  4,
-  2,
-  1,
-  2,
-  3,
-  3,
-  4,
-  3,
-  4,
-  4,
-  5,
-  3,
-  4,
-  4,
-  5,
-  2,
-  3,
-  3,
-  2,
-  3,
-  4,
-  4,
-  5,
-  4,
-  5,
-  5,
-  2,
-  4,
-  3,
-  5,
-  4,
-  3,
-  2,
-  4,
-  1,
-  3,
-  4,
-  4,
-  5,
-  4,
-  5,
-  3,
-  4,
-  4,
-  5,
-  5,
-  2,
-  3,
-  4,
-  2,
-  1,
-  2,
-  3,
-  3,
-  2,
-  3,
-  4,
-  2,
-  1,
-  3,
-  2,
-  4,
-  1,
-  2,
-  1,
-  1,
-  0]);
-
-/*
-1, -1, 1
-
-
-
-*/
+  0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4,
+  3, 4, 4, 3, 2, 3, 3, 2, 3, 4, 4, 3, 3, 4, 4, 3, 4, 5, 5, 2, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5,
+  3, 4, 4, 5, 4, 5, 5, 4, 2, 3, 3, 4, 3, 4, 2, 3, 3, 4, 4, 5, 4, 5, 3, 2, 3, 4, 4, 3, 4, 5, 3, 2, 4, 5, 5, 4, 5, 2, 4, 1, 1, 2, 2, 3,
+  2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 3, 2, 3, 3, 4, 3, 4, 4, 5, 3, 2, 4, 3, 4, 3, 5, 2, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 4,
+  3, 4, 4, 3, 4, 5, 5, 4, 4, 3, 5, 2, 5, 4, 2, 1, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 2, 3, 3, 2, 3, 4, 4, 5, 4, 5, 5, 2, 4, 3, 5, 4,
+  3, 2, 4, 1, 3, 4, 4, 5, 4, 5, 3, 4, 4, 5, 5, 2, 3, 4, 2, 1, 2, 3, 3, 2, 3, 4, 2, 1, 3, 2, 4, 1, 2, 1, 1, 0]);
 
 var triTable = new Int32Array( [
 - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
@@ -943,28 +589,28 @@ var triTable = new Int32Array( [
 
 
 // debugging
-function drawNormal(x1, y1, z1, x2, y2, z2) {
-  var material = new THREE.LineBasicMaterial({
-    color: 0xffff00
-  });
+// function drawNormal(x1, y1, z1, x2, y2, z2) {
+//   var material = new THREE.LineBasicMaterial({
+//     color: 0xffff00
+//   });
 
-  var vertPos = new THREE.Vector3( x1, y1, z1 );
-
-
-  var normal = new THREE.Vector3(x2, y2, z2);
-
-    // console.log('normal', new THREE.Vector3(x1 * 256 - 0.5, y1 * 256 - 0.5, z1 * 256 - 0.5), normal);
-
-  normal.setLength(2/256);
+//   var vertPos = new THREE.Vector3( x1, y1, z1 );
 
 
-  var geometry = new THREE.Geometry();
-  geometry.vertices.push(
-    vertPos,
-    normal.add(vertPos)
-  );
+//   var normal = new THREE.Vector3(x2, y2, z2);
 
-  var line = new THREE.Line(geometry, material);
+//     // console.log('normal', new THREE.Vector3(x1 * 256 - 0.5, y1 * 256 - 0.5, z1 * 256 - 0.5), normal);
 
-  cubeContents.add(line);
-}
+//   normal.setLength(2/256);
+
+
+//   var geometry = new THREE.Geometry();
+//   geometry.vertices.push(
+//     vertPos,
+//     normal.add(vertPos)
+//   );
+
+//   var line = new THREE.Line(geometry, material);
+
+//   cubeContents.add(line);
+// }

@@ -43,7 +43,7 @@ angular.module('cubeApp')
         });
       });
     }
-    controlService.subscribe($scope, displayNextEdge());
+    controlService.subscribe($scope, displayNextEdge);
 
     function animateDisplaySegment(segment) {
 
