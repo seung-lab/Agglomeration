@@ -184,7 +184,7 @@ class volume(object):
     if os.path.isfile(tmp_filename + '.npy'):
       self.data = np.load(tmp_filename+ '.npy')
       print 'from disk'
-      return
+      return self
 
     if self.local:
         self.getTileLocal()
@@ -333,7 +333,12 @@ class volume(object):
  
 if __name__ == '__main__':
   def main():
-    volume(74628, True).plotTile(125)
-    
+    vol = volume(74627, True).getTile()
+    data = vol.data
+
+    import h5py
+    f = h5py.File('./pyglomer/spark/tmp/ew_channel.h5','w')
+    f.create_dataset("main", data=data)
+    f.close()
   main()
 

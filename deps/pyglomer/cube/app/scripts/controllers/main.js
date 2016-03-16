@@ -7,6 +7,12 @@
  * # MainCtrl
  * Controller of the cubeApp
  */
+
+angular.module('cubeApp').value('globals', {
+  CHUNK_SIZE: 128,
+  CUBE_SIZE: new THREE.Vector3(256,256,256),
+});
+
 angular.module('cubeApp')
   .controller('MainCtrl', function (taskService, $scope, sceneService,
     tileService, overlayService, planeService, 
@@ -23,7 +29,6 @@ angular.module('cubeApp')
     resize();
 
     taskService.getTask(function(task){
-      tileService.init(task.channel_id, task.segmentation_id);
       sceneService.cube.add(tileService.planesHolder);
       sceneService.cube.add(meshService.meshes);
       displayNextEdge();

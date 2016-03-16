@@ -110,7 +110,7 @@ module.exports = function (grunt) {
                 '/app/styles',
                 connect.static('./app/styles')
               ),
-              connect.static(appConfig.app) //              connect.static('.tmp/'+appConfig.app)
+              connect.static(appConfig.app) 
 
             ];
           }
@@ -450,12 +450,12 @@ module.exports = function (grunt) {
         dest: '.tmp/styles/',
         src: '{,*/}*.css'
       },
-      html: {
-        expand: true,
-        cwd: '<%= yeoman.app %>',
-        dest: '.tmp/',
-        src: '{,*/}*.html'
-      }
+      // html: {
+      //   expand: true,
+      //   cwd: '<%= yeoman.app %>',
+      //   dest: '.tmp/',
+      //   src: '{,*/}*.html'
+      // }
     },
 
     // Run some tasks in parallel to speed up the build process
@@ -491,7 +491,6 @@ module.exports = function (grunt) {
     grunt.task.run([
       'clean:server',
       'wiredep',
-      'copy:html',
       // 'traceur', //TODO
       'concurrent:server',
       'postcss:server',

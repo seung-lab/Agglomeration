@@ -40,8 +40,8 @@ class MainHandler(tornado.web.RequestHandler):
 
 class TileHandler(tornado.web.RequestHandler):
 
-  def get(self, volume_id, mip, x, y, z, lower, upper):
-    volume_id, mip, x, y, z, lower, upper = int(volume_id), int(mip), int(x), int(y), int(z), int(lower), int(upper)
+  def get(self, type, mip, x, y, z, lower, upper):
+    mip, x, y, z, lower, upper = int(mip), int(x), int(y), int(z), int(lower), int(upper)
 
     result = spark.dataset.chunks.lookup((z,y,x))
 
@@ -50,11 +50,11 @@ class TileHandler(tornado.web.RequestHandler):
 
     if len(result):
       chann, seg = result[0]
-      spark_channel[:128,:128,:89] = chann[:89,:128,:128].transpose((2,1,0))
-      spark_segmentation[:128,:128,:89] = seg[:89,:128,:128].transpose((2,1,0))
+      spark_channel[:128,:128,:128] = chann[:128,:128,:128].transpose((2,1,0))
+      spark_segmentation[:128,:128,:128] = seg[:128,:128,:128].transpose((2,1,0))
 
 
-    if volume_id == 74627:
+    if type == 'channel':
       chunk = spark_channel
     else:
       chunk = spark_segmentation
@@ -79,6 +79,7 @@ class EdgesHandler(tornado.web.RequestHandler):
     return_json(self, edges[edge_number])
     edge_number += 1
 
+    # return_json(self, [[316], [19116], 0.5035960674285889])
     return
 
   def post(self, volume_id):
@@ -119,7 +120,7 @@ def make_app():
       (r'', MainHandler),
       (r'/tasks', TaskHandler),
       (r'/volume/(\d+)/edges$', EdgesHandler),
-      (r'/volume/(\d+)/chunk/(\d)/(\d)/(\d)/(\d)/tile/xy/(\d+):(\d+$)', TileHandler),
+      (r'/volume/(channel|segmentation)/chunk/(\d)/(\d)/(\d)/(\d)/tile/xy/(\d+):(\d+$)', TileHandler),
     ])
 
 if __name__ == '__main__':

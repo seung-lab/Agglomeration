@@ -8,14 +8,13 @@
  * Service in the cubeApp.
  */
 angular.module('cubeApp')
-  .service('tileService', function (overlayService, meshService, chunkService, $http) {
+  .service('tileService', function (overlayService, meshService,
+   chunkService, $http, globals) {
     // AngularJS will instantiate a singleton by calling "new" on this function
 
     // Tile represents a single 2d 256x256 slice
     // since chunks are 128x128, a tile consists of 4 segments and 4 channel iamges.
     var srv = {
-      CHUNK_SIZE: 128,
-      CUBE_SIZE: new THREE.Vector3(256,256,256),
       CHUNKS:[],
       channel_id: null,
       segmentation_id: null,
@@ -28,31 +27,6 @@ angular.module('cubeApp')
       planes: {},  
       highlight_segments: true,
       initialized: false
-    };
-
-    srv.init = function(channel_id, segmentation_id) {
-      srv.channel_id = channel_id;
-      srv.segmentation_id = segmentation_id;
-
-      for (var x=0; x < srv.CUBE_SIZE.x / srv.CHUNK_SIZE; ++x) {
-        for (var y=0; y < srv.CUBE_SIZE.y / srv.CHUNK_SIZE; ++y) {
-          for (var z=0; z < srv.CUBE_SIZE.z / srv.CHUNK_SIZE; ++z) {
-            srv.CHUNKS.push([x,y,z]);
-          }
-        }        
-      }
-
-      chunkService.CHUNK_SIZE = srv.CHUNK_SIZE;
-      chunkService.CUBE_SIZE = srv.CUBE_SIZE;
-      meshService.CHUNK_SIZE = srv.CHUNK_SIZE;
-      meshService.CUBE_SIZE = srv.CUBE_SIZE;
-      meshService.CHUNKS = srv.CHUNKS;
-      meshService.init();
-      // console.log(srv.CHUNKS);
-
-      srv.create_canvas();
-      srv.create_planes();
-      loadTilesForAxis('xy');
     };
 
     srv.currentTile = function () {
@@ -70,7 +44,7 @@ angular.module('cubeApp')
         return;
       }
       
-      srv.planes.z.position.z = i / srv.CUBE_SIZE.z;
+      srv.planes.z.position.z = i / globals.CUBE_SIZE.z;
       overlayService.setTimeline(srv.planes.z.position.z);
 
       meshService.meshes.children.forEach(function (segment) {
@@ -85,16 +59,15 @@ angular.module('cubeApp')
 
 
     function loadTilesForAxis(axis) {
-      for (var z = 0; z < srv.CUBE_SIZE.z; z++) {
+      for (var z = 0; z < globals.CUBE_SIZE.z; z++) {
         srv.tiles[z] = { segmentation: {}, channel: {} , count:0};
       }
-
       srv.CHUNKS.forEach(function(chunk) {
-        chunkService.getImagesForVol(srv.channel_id, chunk, axis, 'channel', function(tile_idx, type, x, y ,image){
+        chunkService.getImagesForVol(chunk, axis, 'channel', function(tile_idx, type, x, y ,image){
             srv.tiles[tile_idx][type][[x,y]] = image;
             srv.tiles[tile_idx].count++;
         });
-        chunkService.getImagesForVol(srv.segmentation_id, chunk, axis, 'segmentation', function(tile_idx, type, x, y , image){
+        chunkService.getImagesForVol(chunk, axis, 'segmentation', function(tile_idx, type, x, y , image){
             srv.tiles[tile_idx][type][[x,y]] = image;
             srv.tiles[tile_idx].count++;
         });
@@ -105,18 +78,18 @@ angular.module('cubeApp')
     srv.create_canvas = function() {
 
       srv.bufferCanvas = document.createElement('canvas');
-      srv.bufferCanvas.height = srv.bufferCanvas.width = srv.CHUNK_SIZE;
+      srv.bufferCanvas.height = srv.bufferCanvas.width = globals.CHUNK_SIZE;
       srv.bufferContext = srv.bufferCanvas.getContext('2d');
 
       srv.segCanvas = document.createElement('canvas');
-      srv.segCanvas.width = srv.CUBE_SIZE.x;
-      srv.segCanvas.height = srv.CUBE_SIZE.y; 
+      srv.segCanvas.width = globals.CUBE_SIZE.x;
+      srv.segCanvas.height = globals.CUBE_SIZE.y; 
       srv.segContext = srv.segCanvas.getContext('2d');
 
       // staging canvas is where the data is prepared for future presentation on a different canvas
       srv.stagingCanvas = document.createElement('canvas');
-      srv.stagingCanvas.width = srv.CUBE_SIZE.x;
-      srv.stagingCanvas.height = srv.CUBE_SIZE.y;
+      srv.stagingCanvas.width = globals.CUBE_SIZE.x;
+      srv.stagingCanvas.height = globals.CUBE_SIZE.y;
       srv.stagingContext = srv.stagingCanvas.getContext('2d');
     };
 
@@ -166,7 +139,7 @@ angular.module('cubeApp')
       
       //Plane geometry is the one that holds the electron microscopy image, it has some tickness that's why
       //we are using a box
-      var planeGeometry = new THREE.BoxGeometry(1, 1, 1 / (srv.CUBE_SIZE.z));
+      var planeGeometry = new THREE.BoxGeometry(1, 1, 1 / (globals.CUBE_SIZE.z));
       planeGeometry.faceVertexUvs[0][10] = [new THREE.Vector2(1, 1), new THREE.Vector2(1, 0), new THREE.Vector2(0, 1)];
       planeGeometry.faceVertexUvs[0][11] = [new THREE.Vector2(1, 0), new THREE.Vector2(0, 0), new THREE.Vector2(0, 1)];
       
@@ -187,7 +160,7 @@ angular.module('cubeApp')
 
 
     srv.isComplete = function(tile_idx) {
-      return srv.tiles[tile_idx].count === (srv.CUBE_SIZE.x / srv.CHUNK_SIZE) * (srv.CUBE_SIZE.y / srv.CHUNK_SIZE) * 2;
+      return srv.tiles[tile_idx].count === (globals.CUBE_SIZE.x / globals.CHUNK_SIZE) * (globals.CUBE_SIZE.y / globals.CHUNK_SIZE) * 2;
     };
 
     srv.draw = function () {
@@ -199,10 +172,10 @@ angular.module('cubeApp')
 
       var tile = srv.currentTile();
 
-      for (var x=0; x < srv.CUBE_SIZE.x / srv.CHUNK_SIZE; ++x) {
-        for (var y=0; y < srv.CUBE_SIZE.y / srv.CHUNK_SIZE; ++y) {
-          srv.stagingContext.drawImage(tile.channel[[x,y]], x * srv.CHUNK_SIZE, y * srv.CHUNK_SIZE);
-          srv.segContext.drawImage(tile.segmentation[[x,y]], x * srv.CHUNK_SIZE, y * srv.CHUNK_SIZE);
+      for (var x=0; x < globals.CUBE_SIZE.x / globals.CHUNK_SIZE; ++x) {
+        for (var y=0; y < globals.CUBE_SIZE.y / globals.CHUNK_SIZE; ++y) {
+          srv.stagingContext.drawImage(tile.channel[[x,y]], x * globals.CHUNK_SIZE, y * globals.CHUNK_SIZE);
+          srv.segContext.drawImage(tile.segmentation[[x,y]], x * globals.CHUNK_SIZE, y * globals.CHUNK_SIZE);
         }
       }
       
@@ -222,8 +195,8 @@ angular.module('cubeApp')
 
 
       // copy is a working buffer to add highlights without modifying the original tile data
-      var segPixels = srv.segContext.getImageData(0, 0, srv.CUBE_SIZE.x, srv.CUBE_SIZE.y).data;
-      var channelImageData = srv.stagingContext.getImageData(0, 0, srv.CUBE_SIZE.x, srv.CUBE_SIZE.y);
+      var segPixels = srv.segContext.getImageData(0, 0, globals.CUBE_SIZE.x, globals.CUBE_SIZE.y).data;
+      var channelImageData = srv.stagingContext.getImageData(0, 0, globals.CUBE_SIZE.x, globals.CUBE_SIZE.y);
       var channelPixels = channelImageData.data;
 
       var segment_ids = [];
@@ -269,9 +242,9 @@ angular.module('cubeApp')
 
     // returns the the segment id located at the given x y position of this tile
     srv.segIdForPosition = function(x, y) {
-      var segPixels = srv.segContext.getImageData(0, 0, srv.CUBE_SIZE.x, srv.CUBE_SIZE.y).data;
+      var segPixels = srv.segContext.getImageData(0, 0, globals.CUBE_SIZE.x, globals.CUBE_SIZE.y).data;
       // var data = //this.segmentation[chunkY * 2 + chunkX].data;
-      var start = (y * srv.CUBE_SIZE.y + x) * 4;
+      var start = (y * globals.CUBE_SIZE.y + x) * 4;
       var rgb = [segPixels[start], segPixels[start+1], segPixels[start+2]];
       return rgbToSegId(rgb);
     };
@@ -291,6 +264,21 @@ angular.module('cubeApp')
 
       return [red, green, blue];
     }
+
+    function init() {
+      for (var x=0; x < globals.CUBE_SIZE.x / globals.CHUNK_SIZE; ++x) {
+        for (var y=0; y < globals.CUBE_SIZE.y / globals.CHUNK_SIZE; ++y) {
+          for (var z=0; z < globals.CUBE_SIZE.z / globals.CHUNK_SIZE; ++z) {
+            srv.CHUNKS.push([x,y,z]);
+          }
+        }        
+      }
+
+      srv.create_canvas();
+      srv.create_planes();
+      loadTilesForAxis('xy');
+    };
+    init();
 
     return srv;
   });

@@ -51,8 +51,7 @@ class SparkServer(object):
                         FROM edges as e
                         INNER JOIN vertices as v1 on e.src = v1.id
                         INNER JOIN vertices as v2 on e.dst = v2.id
-                        WHERE v1.sizes > 20000
-                        AND v2.sizes > 20000 
+                        WHERE v1.sizes > 100000 OR v2.sizes > 100000 
                         order by abs(0.5 - e.mean_affinity)""").collect()
      
 

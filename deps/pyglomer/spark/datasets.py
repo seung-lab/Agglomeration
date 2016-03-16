@@ -136,9 +136,9 @@ class Dataset(object):
     else:
 
       files = {
-        'channel': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/channel.h5',
-        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/machine_labels.h5',
-        'human_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/machine_labels.h5',
+        'channel': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/ew_channel.h5',
+        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/ew_machine_labels.h5',
+        'human_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/ew_machine_labels.h5',
         'affinities': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/affinities.h5',
         'vertices': './pyglomer/spark/tmp/vertices',
         'edges': './pyglomer/spark/tmp/edges'

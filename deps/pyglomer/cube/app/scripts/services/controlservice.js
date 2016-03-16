@@ -8,7 +8,9 @@
  * Service in the cubeApp.
  */
 angular.module('cubeApp')
-  .service('controlService', function (meshService, tileService, planeService, overlayService, sceneService, keyboardService, taskService, $rootScope) {
+  .service('controlService', function (meshService, tileService, planeService,
+    overlayService, sceneService, keyboardService,
+    taskService, $rootScope, globals) {
     // AngularJS will instantiate a singleton by calling "new" on this function
     var srv = {
       initialized: false,
@@ -325,7 +327,7 @@ angular.module('cubeApp')
     document.addEventListener('mousewheel', mousewheel, false);
 
     function tileDelta(delta) {
-      tileService.currentTileFloat = clamp(tileService.currentTileFloat + delta, 1, tileService.CUBE_SIZE.z);
+      tileService.currentTileFloat = clamp(tileService.currentTileFloat + delta, 1, globals.CUBE_SIZE.z - 1);
 
       var nextTile = Math.round(tileService.currentTileFloat);
 
@@ -504,6 +506,50 @@ angular.module('cubeApp')
 
       return largest;
     }
+
+    function checkForTileClick(event) {
+      srv.raycaster.setFromCamera(mouse, camera.realCamera);
+      var intersects = srv.raycaster.intersectObject(tileService.planes.z);
+
+      if (intersects.length === 1) {
+        console.log('got something');
+        var point = intersects[0].point;
+        point.applyQuaternion(pivot.quaternion.clone().inverse());
+        point.sub(cube.position);
+
+        var xPixel = Math.floor((point.x + 0.5) * globals.CUBE_SIZE); // TODO, why do I add 0.5? i guess for rounding
+        var yPixel = Math.floor((point.y + 0.5) * globals.CUBE_SIZE);
+
+        var tile = tileService.currentTile();
+
+        if (tile.isComplete()) {
+          var segId = tile.segIdForPosition(xPixel, yPixel);
+          // if (key('ctrl', HELD)) {
+          //   SegmentManager.deselectSegId(segId);
+          // } else {
+          //   SegmentManager.selectSegId(segId);
+          // }
+        }
+
+      } else if (intersects.length > 1) {
+        console.log('wtf', intersects);
+      } else {
+        console.log('no interesects', intersects);
+      }
+    }
+
+    // function checkForSegmentClick(x, y) {
+    //   wireframe.visible = false;
+    //   planes.z.visible = false;
+    //   var ids = ThreeDView.readBuffer(x, y, 1, renderer, scene, camera.realCamera, segments);
+    //   for (var i = 0; i < ids.length; i++) {
+    //     var segId = ids[i];
+    //     SegmentManager.deselectSegId(segId);
+    //   };
+
+    //   planes.z.visible = true;
+    //   wireframe.visible = true;
+    // }
 
 
     srv.unSnap = function () {
