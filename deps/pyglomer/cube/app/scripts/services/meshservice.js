@@ -18,6 +18,7 @@ angular.module('cubeApp')
       transparent: false,
       opacity: 1.0,
       meshes: new THREE.Object3D(),
+      pixelToSegId: new Int32Array(globals.CUBE_SIZE.x * globals.CUBE_SIZE.y * globals.CUBE_SIZE.z)
     };
  
     // sets the opacity for all segments
@@ -45,7 +46,6 @@ angular.module('cubeApp')
 
     function init(){
       srv.meshes.position.set(-0.5, -0.5, -0.5);
-      srv.pixelToSegId = new Int32Array(globals.CUBE_SIZE.x * globals.CUBE_SIZE.y * globals.CUBE_SIZE.z);  
     }
     init();
 
@@ -172,18 +172,18 @@ angular.module('cubeApp')
       return material
     }
 
-    srv.displayEdge = function(volume_id, edge, callback) {
+    srv.displayEdge = function(edge, callback) {
       
       //TODO modify this so it supports many segment_ids for each edge
-      srv.displayMesh ( volume_id, edge[0][0], 'red' , callback);
-      srv.displayMesh ( volume_id, edge[1][0], 'blue' , callback);
+      srv.displayMesh ( edge[0][0], 'red' , callback);
+      srv.displayMesh ( edge[1][0], 'blue' , callback);
     };
 
-    srv.displayMesh = function(volume_id, segment_id, color ,callback) {
+    srv.displayMesh = function(segment_id, color ,callback) {
 
       var color =  new THREE.Color(color);
       if (!(segment_id in srv.cache)) {
-        get_mesh2( volume_id , segment_id, color,  function(mesh) {
+        get_mesh2(segment_id, color,  function(mesh) {
           srv.cache[segment_id] = mesh;
           srv.meshes.add(mesh);
           callback(mesh);
@@ -209,7 +209,7 @@ angular.module('cubeApp')
       });
     };
 
-    function get_mesh2( volume_id , segment_id,  color, callback ) {
+    function get_mesh2(segment_id,  color, callback ) {
       // Compute the mesh in the browser using marching cubes
       
       var count = 0;
@@ -225,144 +225,101 @@ angular.module('cubeApp')
     };
 
     function generateGeoForSegment(segId, pixelToSegId) {
-      var X_DIM = globals.CUBE_SIZE.x;
-      var Y_DIM = globals.CUBE_SIZE.y;
-      var Z_DIM = globals.CUBE_SIZE.z;
 
-      var start = window.performance.now();
-      var byteBuffer = new ArrayBuffer(X_DIM * Y_DIM * Z_DIM);
-      var counts = new Uint8Array(byteBuffer);
-      var partCount = 0;
+      function count_normals(voxelNormal,i, xOff, yOff, zOff, precision = 0) {
 
-      var voxelNormal = new Int8Array(X_DIM * Y_DIM * Z_DIM * 3); // normal has x y and z component
-      var close = 10;
-      var med = 7;
-      var far = 6; 
+        var close = 10;
+        var med = 7;
+        var far = 6; 
 
-      var xOff = 1;
-      var yOff = X_DIM;
-      var zOff = X_DIM * Y_DIM;
+        switch(precision) {
+        case 2:
+           // right down forward (+ + +)
+          voxelNormal[(i + xOff + yOff + zOff)*3] += far; 
+          voxelNormal[(i + xOff + yOff + zOff)*3+1] += far;
+          voxelNormal[(i + xOff + yOff + zOff)*3+2] += far;
+          // right down back (+ + -)
+          voxelNormal[(i + xOff + yOff - zOff)*3] += far; 
+          voxelNormal[(i + xOff + yOff - zOff)*3+1] += far;
+          voxelNormal[(i + xOff + yOff - zOff)*3+2] -= far;
+          // left down forward (- + +)
+          voxelNormal[(i - xOff + yOff + zOff)*3] -= far; 
+          voxelNormal[(i - xOff + yOff + zOff)*3+1] += far;
+          voxelNormal[(i - xOff + yOff + zOff)*3+2] += far;
+          // left down back (- + -)
+          voxelNormal[(i - xOff + yOff - zOff)*3] -= far; 
+          voxelNormal[(i - xOff + yOff - zOff)*3+1] += far;
+          voxelNormal[(i - xOff + yOff - zOff)*3+2] -= far;
+          // left up forward (- - +)
+          voxelNormal[(i - xOff - yOff + zOff)*3] -= far; 
+          voxelNormal[(i - xOff - yOff + zOff)*3+1] -= far;
+          voxelNormal[(i - xOff - yOff + zOff)*3+2] += far;
+          // left up back (- - -)
+          voxelNormal[(i - xOff - yOff - zOff)*3] -= far; 
+          voxelNormal[(i - xOff - yOff - zOff)*3+1] -= far;
+          voxelNormal[(i - xOff - yOff - zOff)*3+2] -= far;
+          // right up forward (+ - +)
+          voxelNormal[(i + xOff - yOff + zOff)*3] += far; 
+          voxelNormal[(i + xOff - yOff + zOff)*3+1] -= far;
+          voxelNormal[(i + xOff - yOff + zOff)*3+2] += far;
+          // right up back (+ - -)
+          voxelNormal[(i + xOff - yOff - zOff)*3] += far; 
+          voxelNormal[(i + xOff - yOff - zOff)*3+1] -= far;
+          voxelNormal[(i + xOff - yOff - zOff)*3+2] -= far;
+        case 1:
+          // right down (+ +)
+          voxelNormal[(i + xOff + yOff)*3] += med; 
+          voxelNormal[(i + xOff + yOff)*3+1] += med;
+          // left down (- +)
+          voxelNormal[(i - xOff + yOff)*3] -= med; 
+          voxelNormal[(i - xOff + yOff)*3+1] += med;
+          // left up (- -)
+          voxelNormal[(i - xOff - yOff)*3] -= med; 
+          voxelNormal[(i - xOff - yOff)*3+1] -= med;
+          // right up (+ -)
+          voxelNormal[(i + xOff - yOff)*3] += med; 
+          voxelNormal[(i + xOff - yOff)*3+1] -= med;
 
-      for (var i = X_DIM * Y_DIM * Z_DIM - 1; i >= 0; --i) {
-        if (pixelToSegId[i] === segId) {
-
-          // this is faster
+        case 0:
           voxelNormal[(i + xOff) * 3] += close;
           voxelNormal[(i - xOff) * 3] -= close;
           voxelNormal[(i + yOff) * 3 + 1] += close;
           voxelNormal[(i - yOff) * 3 + 1] -= close;
           voxelNormal[(i + zOff) * 3 + 2] += close;
           voxelNormal[(i - zOff) * 3 + 2] -= close;
-
-           // right down (+ +)
-          voxelNormal[(i + xOff + yOff)*3] += med; 
-          voxelNormal[(i + xOff + yOff)*3+1] += med;
-
-          // right down forward (+ + +)
-          voxelNormal[(i + xOff + yOff + zOff)*3] += far; 
-          voxelNormal[(i + xOff + yOff + zOff)*3+1] += far;
-          voxelNormal[(i + xOff + yOff + zOff)*3+2] += far;
-
-          // right down back (+ + -)
-          voxelNormal[(i + xOff + yOff - zOff)*3] += far; 
-          voxelNormal[(i + xOff + yOff - zOff)*3+1] += far;
-          voxelNormal[(i + xOff + yOff - zOff)*3+2] -= far;
-
-          // left down (- +)
-          voxelNormal[(i - xOff + yOff)*3] -= med; 
-          voxelNormal[(i - xOff + yOff)*3+1] += med;
-
-          // left down forward (- + +)
-          voxelNormal[(i - xOff + yOff + zOff)*3] -= far; 
-          voxelNormal[(i - xOff + yOff + zOff)*3+1] += far;
-          voxelNormal[(i - xOff + yOff + zOff)*3+2] += far;
-
-          // left down back (- + -)
-          voxelNormal[(i - xOff + yOff - zOff)*3] -= far; 
-          voxelNormal[(i - xOff + yOff - zOff)*3+1] += far;
-          voxelNormal[(i - xOff + yOff - zOff)*3+2] -= far;
-
-          // left up (- -)
-          voxelNormal[(i - xOff - yOff)*3] -= med; 
-          voxelNormal[(i - xOff - yOff)*3+1] -= med;
-
-          // left up forward (- - +)
-          voxelNormal[(i - xOff - yOff + zOff)*3] -= far; 
-          voxelNormal[(i - xOff - yOff + zOff)*3+1] -= far;
-          voxelNormal[(i - xOff - yOff + zOff)*3+2] += far;
-
-          // left up back (- - -)
-          voxelNormal[(i - xOff - yOff - zOff)*3] -= far; 
-          voxelNormal[(i - xOff - yOff - zOff)*3+1] -= far;
-          voxelNormal[(i - xOff - yOff - zOff)*3+2] -= far;
-
-          // right up (+ -)
-          voxelNormal[(i + xOff - yOff)*3] += med; 
-          voxelNormal[(i + xOff - yOff)*3+1] -= med;
-
-          // right up forward (+ - +)
-          voxelNormal[(i + xOff - yOff + zOff)*3] += far; 
-          voxelNormal[(i + xOff - yOff + zOff)*3+1] -= far;
-          voxelNormal[(i + xOff - yOff + zOff)*3+2] += far;
-
-          // right up back (+ - -)
-          voxelNormal[(i + xOff - yOff - zOff)*3] += far; 
-          voxelNormal[(i + xOff - yOff - zOff)*3+1] -= far;
-          voxelNormal[(i + xOff - yOff - zOff)*3+2] -= far;
-
-          counts[i                     ] |= 1;   // 0
-          counts[i - xOff              ] |= 2;   // 1
-          counts[i -        yOff       ] |= 16;  // 4
-          counts[i - xOff - yOff       ] |= 32;  // 5
-          counts[i -               zOff] |= 8;   // 3
-          counts[i - xOff -        zOff] |= 4;   // 2
-          counts[i -        yOff - zOff] |= 128; // 7
-          counts[i - xOff - yOff - zOff] |= 64;  // 6
+          break;
+        default:
+            throw "unkown level of preicion"
         }
+      };
+
+      function count_neighboors() {
+        var voxelNormal = new Int8Array(X_DIM * Y_DIM * Z_DIM * 3); // normal has x y and z component
+        var counts = new Uint8Array(new ArrayBuffer(X_DIM * Y_DIM * Z_DIM));
+        for (var i = 0; i < X_DIM * Y_DIM * Z_DIM; ++i) {
+          if (pixelToSegId[i] === segId) {
+
+            count_normals(voxelNormal,i, xOff, yOff, zOff, 0)
+            counts[i                     ] |= 1;   // 0
+            counts[i - xOff              ] |= 2;   // 1
+            counts[i -        yOff       ] |= 16;  // 4
+            counts[i - xOff - yOff       ] |= 32;  // 5
+            counts[i -               zOff] |= 8;   // 3
+            counts[i - xOff -        zOff] |= 4;   // 2
+            counts[i -        yOff - zOff] |= 128; // 7
+            counts[i - xOff - yOff - zOff] |= 64;  // 6
+          }
+        }
+
+        return { voxelNormal:voxelNormal, counts:counts }
       }
 
-
-    var triCount = 0;
-    
-    for (var i = X_DIM * Y_DIM * Z_DIM - 1; i >= 0; --i) {
-      triCount += triCountTable[counts[i]];
-    }
-
-    var vertBuffer = new Float32Array(12*3);
-    var normBuffer = new Float32Array(12*3)
-
-
-    var meshVertices = new Float32Array(triCount * 3 * 3);
-
-
-    var meshNormals = new Float32Array(triCount * 3 * 3);
-
-
-    var normalMap = {};
-
-    var curTriCount = 0;
-
-    var dbg = 0;
-
-    for (var i = X_DIM * Y_DIM * Z_DIM - 1; i >= 0; --i) {
-      var cubeIndex = counts[i];
-      counts[i] = 0;
-      
-      var indvTriCount = triCountTable[cubeIndex];
-
-      if (indvTriCount !== 0) {
-
-        var z = Math.floor(i / (X_DIM * Y_DIM));
-        var y = Math.floor((i - z * X_DIM * Y_DIM) / X_DIM);
-        var x = i % X_DIM;
-
-        z += 0.5;
-        y += 0.5;
-        x += 0.5;
-
+      function compute_normals() {
         var no = i*3;
-
-        var n0x = voxelNormal[no]; var n0y = voxelNormal[no+1]; var n0z = voxelNormal[no+2];
+        var n0x = voxelNormal[no]; 
+        var n0y = voxelNormal[no+1]; 
+        var n0z = voxelNormal[no+2];
+        
         var n1x = voxelNormal[no+(xOff)*3]; var n1y = voxelNormal[no+(xOff)*3+1]; var n1z = voxelNormal[no+(xOff)*3+2];
         var n2x = voxelNormal[no+(zOff+xOff)*3]; var n2y = voxelNormal[no+(zOff+xOff)*3+1]; var n2z = voxelNormal[no+(zOff+xOff)*3+2];
         var n3x = voxelNormal[no+(zOff)*3]; var n3y = voxelNormal[no+(zOff)*3+1]; var n3z = voxelNormal[no+(zOff)*3+2];
@@ -371,175 +328,222 @@ angular.module('cubeApp')
         var n6x = voxelNormal[no+(zOff+yOff+xOff)*3]; var n6y = voxelNormal[no+(zOff+yOff+xOff)*3+1]; var n6z = voxelNormal[no+(zOff+yOff+xOff)*3+2];
         var n7x = voxelNormal[no+(zOff+yOff)*3]; var n7y = voxelNormal[no+(zOff+yOff)*3+1]; var n7z = voxelNormal[no+(zOff+yOff)*3+2];
 
-
         // 0 and 1
-        vertBuffer[0] = x + 0.5;
-        vertBuffer[1] = y;
-        vertBuffer[2] = z;
-
         normBuffer[0] = n0x + n1x;
         normBuffer[1] = n0y + n1y;
         normBuffer[2] = n0z + n1z;
-
         // 1 and 2
-        vertBuffer[3] = x + 1;
-        vertBuffer[4] = y;
-        vertBuffer[5] = z + 0.5;
-
         normBuffer[3] = n1x + n2x;
         normBuffer[4] = n1y + n2y;
         normBuffer[5] = n1z + n2z;
-
         // 2 and 3
-        vertBuffer[6] = x + 0.5;
-        vertBuffer[7] = y;
-        vertBuffer[8] = z + 1;
-
         normBuffer[6] = n2x + n3x;
         normBuffer[7] = n2y + n3y;
         normBuffer[8] = n2z + n3z;
-
         // 3 and 0
-        vertBuffer[9]  = x;
-        vertBuffer[10] = y;
-        vertBuffer[11] = z + 0.5;
-
         normBuffer[9] = n0x + n3x;
         normBuffer[10] = n0y + n3y;
         normBuffer[11] = n0z + n3z;
-
         // 4 and 5
-        vertBuffer[12] = x + 0.5;
-        vertBuffer[13] = y + 1;
-        vertBuffer[14] = z;
-
         normBuffer[12] = n4x + n5x;
         normBuffer[13] = n4y + n5y;
         normBuffer[14] = n4z + n5z;
-
         // 5 and 6
-        vertBuffer[15] = x + 1;
-        vertBuffer[16] = y + 1;
-        vertBuffer[17] = z + 0.5;
-
         normBuffer[15] = n5x + n6x;
         normBuffer[16] = n5y + n6y;
         normBuffer[17] = n5z + n6z;
-
         // 6 and 7
-        vertBuffer[18] = x + 0.5;
-        vertBuffer[19] = y + 1;
-        vertBuffer[20] = z + 1;
-
         normBuffer[18] = n6x + n7x;
         normBuffer[19] = n6y + n7y;
         normBuffer[20] = n6z + n7z;
-
         // 7 and 4
-        vertBuffer[21] = x;
-        vertBuffer[22] = y + 1;
-        vertBuffer[23] = z + 0.5;
-
         normBuffer[21] = n4x + n7x;
         normBuffer[22] = n4y + n7y;
         normBuffer[23] = n4z + n7z;
-
         // 0 and 4
-        vertBuffer[24] = x;
-        vertBuffer[25] = y + 0.5;
-        vertBuffer[26] = z;
-
         normBuffer[24] = n0x + n4x;
         normBuffer[25] = n0y + n4y;
         normBuffer[26] = n0z + n4z;
-
         // 1 and 5
-        vertBuffer[27] = x + 1;
-        vertBuffer[28] = y + 0.5;
-        vertBuffer[29] = z;
-
         normBuffer[27] = n1x + n5x;
         normBuffer[28] = n1y + n5y;
         normBuffer[29] = n1z + n5z;
-
         // 2 and 6
-        vertBuffer[30] = x + 1;
-        vertBuffer[31] = y + 0.5;
-        vertBuffer[32] = z + 1;
-
         normBuffer[30] = n2x + n6x;
         normBuffer[31] = n2y + n6y;
         normBuffer[32] = n2z + n6z;
-
         // 3 and 7
-        vertBuffer[33] = x;
-        vertBuffer[34] = y + 0.5;
-        vertBuffer[35] = z + 1;
-
         normBuffer[33] = n3x + n7x;
         normBuffer[34] = n3y + n7y;
         normBuffer[35] = n3z + n7z;
 
+      };
+
+      console.log('from mesher segment_id=' + segId);
+      var X_DIM = globals.CUBE_SIZE.x;
+      var Y_DIM = globals.CUBE_SIZE.y;
+      var Z_DIM = globals.CUBE_SIZE.z;
+
+      var start = window.performance.now();
+      var partCount = 0;
+
+   
+      var xOff = 1;
+      var yOff = X_DIM;
+      var zOff = X_DIM * Y_DIM;
+
+      if (segId === 0) {
+        //TODO return nothing
+      }
+
+      var count = count_neighboors();
+      var voxelNormal = count.voxelNormal;
+        var counts = count.counts;
+
+      var triCount = 0;
+      for (var i = 0; i < X_DIM * Y_DIM * Z_DIM; ++i) {
+        triCount += triCountTable[counts[i]];
+      }
 
 
-        cubeIndex <<= 4; // mult by 16 (triTable row width)
+      var vertBuffer = new Float32Array(12*3);
+      var normBuffer = new Float32Array(12*3)
+      var meshVertices = new Float32Array(triCount * 3 * 3);
+      var meshNormals = new Float32Array(triCount * 3 * 3);
+      var normalMap = {};
+      var curTriCount = 0;
 
-        var j = cubeIndex;
+      for ( var x= 0; x < X_DIM; ++x ) {
+        for( var y=0; y < Y_DIM; ++y ) {
+          for( var z=0; z < Z_DIM; ++ z) {
 
-        for (var m = indvTriCount - 1; m >= 0; --m) {
-          var startIdx = curTriCount * 9;
-          var vert1 = triTable[j] * 3;
-          var vert2 = triTable[j + 1] * 3;
-          var vert3 = triTable[j + 2] * 3;
+          var i = x + y * X_DIM + z * X_DIM * Y_DIM;
+          var cubeIndex = counts[i];
+          counts[i] = 0;
+        
+          var indvTriCount = triCountTable[cubeIndex];
+
+          if (indvTriCount !== 0) {
+
+           
+            compute_normals();
+
+            // 0 and 1
+            vertBuffer[0] = x + 0.5;
+            vertBuffer[1] = y;
+            vertBuffer[2] = z;
+            // 1 and 2
+            vertBuffer[3] = x + 1;
+            vertBuffer[4] = y;
+            vertBuffer[5] = z + 0.5;
+            // 2 and 3
+            vertBuffer[6] = x + 0.5;
+            vertBuffer[7] = y;
+            vertBuffer[8] = z + 1;
+            // 3 and 0
+            vertBuffer[9]  = x;
+            vertBuffer[10] = y;
+            vertBuffer[11] = z + 0.5;
+            // 4 and 5
+            vertBuffer[12] = x + 0.5;
+            vertBuffer[13] = y + 1;
+            vertBuffer[14] = z;
+            // 5 and 6
+            vertBuffer[15] = x + 1;
+            vertBuffer[16] = y + 1;
+            vertBuffer[17] = z + 0.5;
+            // 6 and 7
+            vertBuffer[18] = x + 0.5;
+            vertBuffer[19] = y + 1;
+            vertBuffer[20] = z + 1;
+            // 7 and 4
+            vertBuffer[21] = x;
+            vertBuffer[22] = y + 1;
+            vertBuffer[23] = z + 0.5;
+            // 0 and 4
+            vertBuffer[24] = x;
+            vertBuffer[25] = y + 0.5;
+            vertBuffer[26] = z;
+            // 1 and 5
+            vertBuffer[27] = x + 1;
+            vertBuffer[28] = y + 0.5;
+            vertBuffer[29] = z;
+            // 2 and 6
+            vertBuffer[30] = x + 1;
+            vertBuffer[31] = y + 0.5;
+            vertBuffer[32] = z + 1;
+            // 3 and 7
+            vertBuffer[33] = x;
+            vertBuffer[34] = y + 0.5;
+            vertBuffer[35] = z + 1;
+            
 
 
-          j+=3;
-
-          meshVertices[startIdx] = vertBuffer[vert1] / X_DIM;
-          meshVertices[startIdx+1] = vertBuffer[vert1+1] / Y_DIM;
-          meshVertices[startIdx+2] = vertBuffer[vert1+2] / Z_DIM;
-
-          meshNormals[startIdx] = normBuffer[vert1];
-          meshNormals[startIdx+1] = normBuffer[vert1+1];
-          meshNormals[startIdx+2] = normBuffer[vert1+2];
 
 
-          meshVertices[startIdx+3] = vertBuffer[vert2] / X_DIM;
-          meshVertices[startIdx+4] = vertBuffer[vert2+1] / Y_DIM;
-          meshVertices[startIdx+5] = vertBuffer[vert2+2] / Z_DIM;
-
-          meshNormals[startIdx+3] =  normBuffer[vert2];
-          meshNormals[startIdx+4] = normBuffer[vert2+1];
-          meshNormals[startIdx+5] = normBuffer[vert2+2];
 
 
-          meshVertices[startIdx+6] = vertBuffer[vert3] / X_DIM;
-          meshVertices[startIdx+7] = vertBuffer[vert3+1] / Y_DIM;
-          meshVertices[startIdx+8] = vertBuffer[vert3+2] / Z_DIM;
 
-          meshNormals[startIdx+6] =  normBuffer[vert3];
-          meshNormals[startIdx+7] = normBuffer[vert3+1];
-          meshNormals[startIdx+8] = normBuffer[vert3+2];
+            cubeIndex <<= 4; // mult by 16 (triTable row width)
 
-          curTriCount++;
+            var j = cubeIndex;
+
+            for (var m = indvTriCount - 1; m >= 0; --m) {
+              var startIdx = curTriCount * 9;
+              var vert1 = triTable[j] * 3;
+              var vert2 = triTable[j + 1] * 3;
+              var vert3 = triTable[j + 2] * 3;
+
+
+              j+=3;
+
+              meshVertices[startIdx] = vertBuffer[vert1] / (X_DIM);
+              meshVertices[startIdx+1] = vertBuffer[vert1+1] / (Y_DIM);
+              meshVertices[startIdx+2] = vertBuffer[vert1+2] / (Z_DIM);
+
+              meshNormals[startIdx] = normBuffer[vert1];
+              meshNormals[startIdx+1] = normBuffer[vert1+1];
+              meshNormals[startIdx+2] = normBuffer[vert1+2];
+
+
+              meshVertices[startIdx+3] = vertBuffer[vert2] / (X_DIM);
+              meshVertices[startIdx+4] = vertBuffer[vert2+1] / (Y_DIM);
+              meshVertices[startIdx+5] = vertBuffer[vert2+2] / (Z_DIM);
+
+              meshNormals[startIdx+3] =  normBuffer[vert2];
+              meshNormals[startIdx+4] = normBuffer[vert2+1];
+              meshNormals[startIdx+5] = normBuffer[vert2+2];
+
+
+              meshVertices[startIdx+6] = vertBuffer[vert3] / (X_DIM);
+              meshVertices[startIdx+7] = vertBuffer[vert3+1] / (Y_DIM);
+              meshVertices[startIdx+8] = vertBuffer[vert3+2] / (Z_DIM);
+
+              meshNormals[startIdx+6] =  normBuffer[vert3];
+              meshNormals[startIdx+7] = normBuffer[vert3+1];
+              meshNormals[startIdx+8] = normBuffer[vert3+2];
+
+              curTriCount++;
+            }
+
+          }
+          }
         }
+      }
+  
+      var segGeo = new THREE.BufferGeometry();
+      segGeo.addAttribute('position', new THREE.BufferAttribute(meshVertices, 3));
+      segGeo.addAttribute('normal', new THREE.BufferAttribute(meshNormals, 3));
 
-     }
+      segGeo.normalizeNormals();
+
+      var end = window.performance.now();
+
+      console.log('time', end - start);
+      console.log('triCount', triCount);
+
+      return segGeo;
     }
-
-    var segGeo = new THREE.BufferGeometry();
-    segGeo.addAttribute('position', new THREE.BufferAttribute(meshVertices, 3));
-    segGeo.addAttribute('normal', new THREE.BufferAttribute(meshNormals, 3));
-
-    segGeo.normalizeNormals();
-
-    var end = window.performance.now();
-
-    console.log('time', end - start);
-    console.log('triCount', triCount);
-
-    return segGeo;
-  }
   /////////////////////////////////////
   // Marching cubes lookup tables
   /////////////////////////////////////
@@ -552,7 +556,7 @@ angular.module('cubeApp')
     3, 4, 4, 3, 4, 5, 5, 4, 4, 3, 5, 2, 5, 4, 2, 1, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 2, 3, 3, 2, 3, 4, 4, 5, 4, 5, 5, 2, 4, 3, 5, 4,
     3, 2, 4, 1, 3, 4, 4, 5, 4, 5, 3, 4, 4, 5, 5, 2, 3, 4, 2, 1, 2, 3, 3, 2, 3, 4, 2, 1, 3, 2, 4, 1, 2, 1, 1, 0]);
 
-  var triTable = new Int32Array( [
+  var triTable = new Uint8Array([
   - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
   0, 8, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
   0, 1, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,

@@ -283,6 +283,8 @@ angular.module('cubeApp')
         srv.rotateEnd.copy( srv.rotateStart );
       }
 
+     
+
       document.addEventListener( 'mousemove', mousemove, false );
       document.addEventListener( 'mouseup', mouseup, false );
     }
@@ -313,6 +315,12 @@ angular.module('cubeApp')
 
       if (srv.snap_state === srv.snap_states.SHIFT) {
         srv.snap();
+      }
+
+      if (srv.snap_state === srv.snap_states.ORTHO && keyboardService.key('shift', keyboardService.HELD)) {
+        srv.mouse.x = (event.clientX / srv.screen.width) * 2 - 1; // why *2 - 1?
+        srv.mouse.y = -(event.clientY / srv.screen.height) * 2 + 1;
+        checkForTileClick(event);
       }
 
     }
@@ -508,31 +516,33 @@ angular.module('cubeApp')
     }
 
     function checkForTileClick(event) {
-      srv.raycaster.setFromCamera(mouse, camera.realCamera);
+      srv.raycaster.setFromCamera(srv.mouse, srv.camera.realCamera);
       var intersects = srv.raycaster.intersectObject(tileService.planes.z);
 
-      if (intersects.length === 1) {
-        console.log('got something');
+      if (intersects.length) {
         var point = intersects[0].point;
-        point.applyQuaternion(pivot.quaternion.clone().inverse());
-        point.sub(cube.position);
+        point.applyQuaternion(sceneService.pivot.quaternion.clone().inverse());
+        point.sub(sceneService.cube.position);
 
-        var xPixel = Math.floor((point.x + 0.5) * globals.CUBE_SIZE); // TODO, why do I add 0.5? i guess for rounding
-        var yPixel = Math.floor((point.y + 0.5) * globals.CUBE_SIZE);
+        var xPixel = Math.floor((point.x + 0.5) * globals.CUBE_SIZE.x); 
+        var yPixel = Math.floor((point.y + 0.5) * globals.CUBE_SIZE.y);
 
-        var tile = tileService.currentTile();
+        console.log({x: xPixel, y:yPixel})
+        var segment_id = tileService.segIdForPosition(xPixel, yPixel);
+        console.log(segment_id)
 
-        if (tile.isComplete()) {
-          var segId = tile.segIdForPosition(xPixel, yPixel);
+        meshService.displayMesh(segment_id, 'green', function(){
+          console.log('adding mesh because of click');
+        });
           // if (key('ctrl', HELD)) {
           //   SegmentManager.deselectSegId(segId);
           // } else {
           //   SegmentManager.selectSegId(segId);
           // }
-        }
+        
 
-      } else if (intersects.length > 1) {
-        console.log('wtf', intersects);
+      // } else if (intersects.length > 1) {
+      //   console.log('wtf', intersects);
       } else {
         console.log('no interesects', intersects);
       }

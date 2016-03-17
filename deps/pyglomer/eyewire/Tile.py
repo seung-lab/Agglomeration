@@ -5,7 +5,7 @@ import png
 from PIL import Image
 import itertools
 
-
+@profile
 def base64_to_array( string ):
   
   mine_type , encoded =  string.split(',') 

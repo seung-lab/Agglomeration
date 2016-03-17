@@ -28,10 +28,10 @@ class SparkServer(object):
 
     self.dataset = Dataset(self.sc,  self.sqlContext)
 
-    # self.dataset.compute_voxel_features()
-    # g = GraphFrame(self.dataset.nodes, self.dataset.edges)
-    # g.vertices.write.parquet(self.dataset.files('vertices'))
-    # g.edges.write.parquet(self.dataset.files('edges'))
+    self.dataset.compute_voxel_features()
+    g = GraphFrame(self.dataset.nodes, self.dataset.edges)
+    g.vertices.write.parquet(self.dataset.files('vertices'))
+    g.edges.write.parquet(self.dataset.files('edges'))
 
 
     # Load the vertices and edges back.
@@ -51,7 +51,7 @@ class SparkServer(object):
                         FROM edges as e
                         INNER JOIN vertices as v1 on e.src = v1.id
                         INNER JOIN vertices as v2 on e.dst = v2.id
-                        WHERE v1.sizes > 100000 OR v2.sizes > 100000 
+                        WHERE v1.size > 100000 OR v2.size > 100000 
                         order by abs(0.5 - e.mean_affinity)""").collect()
      
 

@@ -11,14 +11,11 @@ from tornado.escape import json_encode
 import requests
 import h5py
 
-reponse_cache = dict()
-segmentation = None
-channel = None
-meshes = dict()
 
 edge_number = 0
 edges = None
 spark = None
+stacks = { 'channel':{} , 'segmentation':{} }
 
 def get_subtile(volume ,x, y, z, overlap = 0 ):
 
@@ -40,41 +37,46 @@ class MainHandler(tornado.web.RequestHandler):
 
 class TileHandler(tornado.web.RequestHandler):
 
+  @profile
   def get(self, type, mip, x, y, z, lower, upper):
     mip, x, y, z, lower, upper = int(mip), int(x), int(y), int(z), int(lower), int(upper)
 
-    result = spark.dataset.chunks.lookup((z,y,x))
+    global stacks
+    if (x,y,z) not in stacks[type]:
+      result = spark.dataset.chunks.lookup((z,y,x))
+      spark_channel = np.zeros(shape=(128,128,128), dtype=np.uint8)
+      spark_segmentation = np.zeros(shape=(128,128,128), dtype=np.uint32)
 
-    spark_channel = np.zeros(shape=(128,128,128), dtype=np.uint8)
-    spark_segmentation = np.zeros(shape=(128,128,128), dtype=np.uint32)
+      if len(result):
+        chann, seg = result[0]
 
-    if len(result):
-      chann, seg = result[0]
-      spark_channel[:128,:128,:128] = chann[:128,:128,:128].transpose((2,1,0))
-      spark_segmentation[:128,:128,:128] = seg[:128,:128,:128].transpose((2,1,0))
+        spark_channel[:chann.shape[2]-1,:chann.shape[1]-1,:chann.shape[0]-1] = chann[:chann.shape[0]-1,:chann.shape[1]-1,:chann.shape[2]-1].transpose((2,1,0))
+        spark_segmentation[:seg.shape[2]-1,:seg.shape[1]-1,:seg.shape[0]-1] = seg[:seg.shape[0]-1,:seg.shape[1]-1,:seg.shape[2]-1].transpose((2,1,0))
+        # spark_segmentation[0:100,2:125,2:125] = 1
 
+      if type == 'channel':
+        chunk = spark_channel
+      else:
+        chunk = spark_segmentation
 
-    if type == 'channel':
-      chunk = spark_channel
-    else:
-      chunk = spark_segmentation
+      stack = []
+      for z in range(lower, int(upper)):
+        tile = {'data': Tile.array_to_base64( chunk[:,:,z]) }
+        stack.append(tile)
+      stacks[type][(x,y,z)] =  stack
 
-    stack = []
-    for z in range(lower, int(upper)):
-      tile = {'data': Tile.array_to_base64( chunk[:,:,z]) }
-      stack.append(tile)
-
-    return_json(self, stack)
+    return_json(self, stacks[type][(x,y,z)] )
 
 
 class EdgesHandler(tornado.web.RequestHandler):
   def get(self, volume_id):
     
-    if volume_id not in reponse_cache:
-      reponse_cache[volume_id] = spark.get_edges()
-
+    global edges
     global edge_number
-    edges = reponse_cache[volume_id]
+    
+    if not edges:
+      edges = spark.get_edges()
+
     print  edges[edge_number]
     return_json(self, edges[edge_number])
     edge_number += 1
@@ -101,6 +103,7 @@ class EdgesHandler(tornado.web.RequestHandler):
     self.finish()
 
 class TaskHandler(tornado.web.RequestHandler):
+  @profile
   def get(self):
     task = {
       'cell_id': 1860,
@@ -113,18 +116,20 @@ class TaskHandler(tornado.web.RequestHandler):
     return_json(self, task)
 
 def make_app():
-    global spark
-    spark = SparkServer()
+  global spark
+  spark = SparkServer()
 
-    return tornado.web.Application([
-      (r'', MainHandler),
-      (r'/tasks', TaskHandler),
-      (r'/volume/(\d+)/edges$', EdgesHandler),
-      (r'/volume/(channel|segmentation)/chunk/(\d)/(\d)/(\d)/(\d)/tile/xy/(\d+):(\d+$)', TileHandler),
-    ])
+  return tornado.web.Application([
+    (r'', MainHandler),
+    (r'/tasks', TaskHandler),
+    (r'/volume/(\d+)/edges$', EdgesHandler),
+    (r'/volume/(channel|segmentation)/chunk/(\d)/(\d)/(\d)/(\d)/tile/xy/(\d+):(\d+$)', TileHandler),
+  ])
 
-if __name__ == '__main__':
+def run():
   app = make_app()
   app.listen(8888)
   # tornado.ioloop.IOLoop.current().set_blocking_log_threshold(5)
   tornado.ioloop.IOLoop.current().start()
+if __name__ == '__main__':
+  run()

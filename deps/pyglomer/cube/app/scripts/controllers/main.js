@@ -10,7 +10,7 @@
 
 angular.module('cubeApp').value('globals', {
   CHUNK_SIZE: 128,
-  CUBE_SIZE: new THREE.Vector3(256,256,256),
+  CUBE_SIZE: new THREE.Vector3(512,512,128),
 });
 
 angular.module('cubeApp')
@@ -31,7 +31,7 @@ angular.module('cubeApp')
     taskService.getTask(function(task){
       sceneService.cube.add(tileService.planesHolder);
       sceneService.cube.add(meshService.meshes);
-      displayNextEdge();
+      // displayNextEdge();
     });
 
     function displayNextEdge () {
@@ -42,7 +42,7 @@ angular.module('cubeApp')
       }
 
       taskService.getNextEdge(function(edge){
-        meshService.displayEdge(taskService.task.segmentation_id, edge, function(segment) {
+        meshService.displayEdge(edge, function(segment) {
           //This function is called for every segment being loaded
           animateDisplaySegment(segment);
         });

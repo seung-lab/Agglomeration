@@ -56,7 +56,7 @@ angular.module('cubeApp')
       imageBuffer.src = b64String;
     }
 
-    srv.load = function (tile_idx , data, type, x, y, callback) {
+    srv.load = function (z , data, type, x, y, callback) {
 
       convertBase64ImgToImage(data, function (image) {
       
@@ -65,30 +65,38 @@ angular.module('cubeApp')
           srv.bufferContext.drawImage(image, 0, 0);
           var segPixels = srv.bufferContext.getImageData(0, 0, globals.CHUNK_SIZE, globals.CHUNK_SIZE).data;
 
-          var z = tile_idx;
-          //4177920 sum for an empty tile
-          if (4177920 !== segPixels.reduce( (prev, curr) => prev + curr )) {
-            for (var i = 0; i < globals.CHUNK_SIZE * globals.CHUNK_SIZE; ++i) {
-              var px = i % globals.CHUNK_SIZE + x * globals.CHUNK_SIZE;
-              var py = Math.floor(i / globals.CHUNK_SIZE) + y * globals.CHUNK_SIZE;
-              var pixel = z * globals.CUBE_SIZE.x * globals.CUBE_SIZE.y + py * globals.CUBE_SIZE.y + px;
+          if (z === 0 || z === globals.CUBE_SIZE.z){
+            return;
+          }
 
-              meshService.pixelToSegId[pixel] = rgbToSegIdOffset(segPixels, i * 4);
+          for ( var px = 0; px  < globals.CHUNK_SIZE; ++px ) {
+            for ( var py = 0; py < globals.CHUNK_SIZE; ++py) {
+
+              //Leave 1 pixel with id 0 around the cube, to make closed meshes.
+              var rx =  py + y * globals.CHUNK_SIZE;
+              var ry =  px + x * globals.CHUNK_SIZE;
+              if ( rx === 0 || rx === globals.CUBE_SIZE.x
+                   || ry === 0 || ry === globals.CUBE_SIZE.y) {
+                continue;
+              }
+
+              var pixel = z * globals.CUBE_SIZE.x * globals.CUBE_SIZE.y 
+                          + rx * globals.CUBE_SIZE.y
+                          + ry
+              meshService.pixelToSegId[pixel] = rgbToSegIdOffset(segPixels, (px+py*globals.CHUNK_SIZE) * 4);
             }
           }
+          
         }
 
-        callback(tile_idx, type, x, y , image);
+        callback(z, type, x, y , image);
 
       });
     };
 
 
     function rgbToSegIdOffset(rgb, offset) {
-
-      // console.log(rgb[offset])
-      // console.log(rgb[offset] + rgb[offset+1] * globals.CHUNK_SIZE + rgb[offset+2] * globals.CHUNK_SIZE * globals.CHUNK_SIZE)
-      return rgb[offset] + rgb[offset+1] * globals.CHUNK_SIZE + rgb[offset+2] * globals.CHUNK_SIZE * globals.CHUNK_SIZE;
+      return rgb[offset] + rgb[offset+1] * 256 + rgb[offset+2] * 256 * 256;
     }
 
     return srv;
