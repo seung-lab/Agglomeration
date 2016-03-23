@@ -294,27 +294,90 @@ angular.module('cubeApp')
       };
 
       function count_neighboors() {
+        var meshVertices = [];
+        var meshNormals = [];
+      
         var voxelNormal = new Int8Array(X_DIM * Y_DIM * Z_DIM * 3); // normal has x y and z component
-        var counts = new Uint8Array(new ArrayBuffer(X_DIM * Y_DIM * Z_DIM));
-        for (var i = 0; i < X_DIM * Y_DIM * Z_DIM; ++i) {
-          if (pixelToSegId[i] === segId) {
+        for ( var x= 0; x < X_DIM; ++x ) {
+          for( var y=0; y < Y_DIM; ++y ) {
+            for( var z=0; z < Z_DIM; ++ z) {
 
-            count_normals(voxelNormal,i, xOff, yOff, zOff, 0)
-            counts[i                     ] |= 1;   // 0
-            counts[i - xOff              ] |= 2;   // 1
-            counts[i -        yOff       ] |= 16;  // 4
-            counts[i - xOff - yOff       ] |= 32;  // 5
-            counts[i -               zOff] |= 8;   // 3
-            counts[i - xOff -        zOff] |= 4;   // 2
-            counts[i -        yOff - zOff] |= 128; // 7
-            counts[i - xOff - yOff - zOff] |= 64;  // 6
+              var i = x + y * X_DIM + z * X_DIM * Y_DIM;
+              if (pixelToSegId[i] !== segId) {
+                continue
+              }
+
+              count_normals(voxelNormal,i, xOff, yOff, zOff, 0)
+
+              var cubeIndex = 0;
+              // An 8 bit index is formed where each bit corresponds to a vertex.
+              if (pixelToSegId[i] === segId)                      { cubeIndex     |= 1; }   // 0
+              if (pixelToSegId[i + xOff] === segId)               { cubeIndex     |= 2; }   // 1
+              if (pixelToSegId[i + xOff + yOff] === segId)        { cubeIndex     |= 4; }   // 2
+              if (pixelToSegId[i + yOff] === segId)               { cubeIndex     |= 8; }   // 3 
+              if (pixelToSegId[i + zOff] === segId)               { cubeIndex     |= 16; }  // 4
+              if (pixelToSegId[i + zOff + xOff] === segId)        { cubeIndex     |= 32; }  // 5
+              if (pixelToSegId[i + zOff+ yOff + zOff ] === segId) { cubeIndex     |= 64; }  // 6
+              if (pixelToSegId[i + yOff+ zOff] === segId)         { cubeIndex     |= 128; } // 7
+      
+              // Looking up the edge table returns a 12 bit number,
+              // each bit corresponding to an edge, 0 if the edge isn't cut by the isosurface,
+              // 1 if the edge is cut by the isosurface. If none of the edges are cut the table returns a 0,
+              // this occurs when cubeindex is 0 (all vertices below the isosurface) or 0xff (all vertices above the isosurface).
+              var indvTriCount = triCountTable[cubeIndex];
+              if (indvTriCount === 0) {
+                continue;
+              }
+
+
+              var vertBuffer = compute_vertex_position(x,y,z);
+              var normBuffer = compute_normals(voxelNormal,i);
+
+              cubeIndex <<= 4; // mult by 16 (triTable row width)
+              var j = cubeIndex;
+
+              for (var m = indvTriCount - 1; m >= 0; --m) {
+                var vert1 = triTable[j] * 3;
+                var vert2 = triTable[j + 1] * 3;
+                var vert3 = triTable[j + 2] * 3;
+                j+=3;
+
+                meshVertices.push(vertBuffer[vert1] / (X_DIM));
+                meshVertices.push(vertBuffer[vert1+1] / (Y_DIM));
+                meshVertices.push(vertBuffer[vert1+2] / (Z_DIM));
+
+                meshNormals.push(normBuffer[vert1]);
+                meshNormals.push(normBuffer[vert1+1]);
+                meshNormals.push(normBuffer[vert1+2]);
+
+
+                meshVertices.push(vertBuffer[vert2] / (X_DIM));
+                meshVertices.push(vertBuffer[vert2+1] / (Y_DIM));
+                meshVertices.push(vertBuffer[vert2+2] / (Z_DIM));
+
+                meshNormals.push(normBuffer[vert2]);
+                meshNormals.push(normBuffer[vert2+1]);
+                meshNormals.push(normBuffer[vert2+2]);
+
+
+                meshVertices.push(vertBuffer[vert3] / (X_DIM));
+                meshVertices.push(vertBuffer[vert3+1] / (Y_DIM));
+                meshVertices.push(vertBuffer[vert3+2] / (Z_DIM));
+
+                meshNormals.push(normBuffer[vert3]);
+                meshNormals.push(normBuffer[vert3+1]);
+                meshNormals.push(normBuffer[vert3+2]);
+              }
+            }
           }
         }
 
-        return { voxelNormal:voxelNormal, counts:counts }
+        return { meshNormals:meshNormals, meshVertices:meshVertices };
       }
 
-      function compute_normals() {
+      function compute_normals(normBuffer, voxelNormal,i) {
+        var normBuffer = new Float32Array(12*3);
+
         var no = i*3;
         var n0x = voxelNormal[no]; 
         var n0y = voxelNormal[no+1]; 
@@ -377,161 +440,91 @@ angular.module('cubeApp')
         normBuffer[34] = n3y + n7y;
         normBuffer[35] = n3z + n7z;
 
-      };
+        return normBuffer;
+      }
+
+      function compute_vertex_position(x,y,z) {
+        var vertBuffer = new Float32Array(12*3);
+
+        // 0 and 1
+        vertBuffer[0] = x + 0.5;
+        vertBuffer[1] = y;
+        vertBuffer[2] = z;
+        // 1 and 2
+        vertBuffer[3] = x + 1;
+        vertBuffer[4] = y;
+        vertBuffer[5] = z + 0.5;
+        // 2 and 3
+        vertBuffer[6] = x + 0.5;
+        vertBuffer[7] = y;
+        vertBuffer[8] = z + 1;
+        // 3 and 0
+        vertBuffer[9]  = x;
+        vertBuffer[10] = y;
+        vertBuffer[11] = z + 0.5;
+        // 4 and 5
+        vertBuffer[12] = x + 0.5;
+        vertBuffer[13] = y + 1;
+        vertBuffer[14] = z;
+        // 5 and 6
+        vertBuffer[15] = x + 1;
+        vertBuffer[16] = y + 1;
+        vertBuffer[17] = z + 0.5;
+        // 6 and 7
+        vertBuffer[18] = x + 0.5;
+        vertBuffer[19] = y + 1;
+        vertBuffer[20] = z + 1;
+        // 7 and 4
+        vertBuffer[21] = x;
+        vertBuffer[22] = y + 1;
+        vertBuffer[23] = z + 0.5;
+        // 0 and 4
+        vertBuffer[24] = x;
+        vertBuffer[25] = y + 0.5;
+        vertBuffer[26] = z;
+        // 1 and 5
+        vertBuffer[27] = x + 1;
+        vertBuffer[28] = y + 0.5;
+        vertBuffer[29] = z;
+        // 2 and 6
+        vertBuffer[30] = x + 1;
+        vertBuffer[31] = y + 0.5;
+        vertBuffer[32] = z + 1;
+        // 3 and 7
+        vertBuffer[33] = x;
+        vertBuffer[34] = y + 0.5;
+        vertBuffer[35] = z + 1;
+
+        return vertBuffer;
+      }
 
       console.log('from mesher segment_id=' + segId);
       var X_DIM = globals.CUBE_SIZE.x;
       var Y_DIM = globals.CUBE_SIZE.y;
       var Z_DIM = globals.CUBE_SIZE.z;
+      var xOff = 1;
+      var yOff = X_DIM;
+      var zOff = X_DIM * Y_DIM;
+
 
       var start = window.performance.now();
       var partCount = 0;
 
    
-      var xOff = 1;
-      var yOff = X_DIM;
-      var zOff = X_DIM * Y_DIM;
-
+  
       if (segId === 0) {
         //TODO return nothing
       }
 
       var count = count_neighboors();
-      var voxelNormal = count.voxelNormal;
-        var counts = count.counts;
-
-      var triCount = 0;
-      for (var i = 0; i < X_DIM * Y_DIM * Z_DIM; ++i) {
-        triCount += triCountTable[counts[i]];
-      }
-
-
-      var vertBuffer = new Float32Array(12*3);
-      var normBuffer = new Float32Array(12*3)
-      var meshVertices = new Float32Array(triCount * 3 * 3);
-      var meshNormals = new Float32Array(triCount * 3 * 3);
-      var normalMap = {};
-      var curTriCount = 0;
-
-      for ( var x= 0; x < X_DIM; ++x ) {
-        for( var y=0; y < Y_DIM; ++y ) {
-          for( var z=0; z < Z_DIM; ++ z) {
-
-          var i = x + y * X_DIM + z * X_DIM * Y_DIM;
-          var cubeIndex = counts[i];
-          counts[i] = 0;
-        
-          var indvTriCount = triCountTable[cubeIndex];
-
-          if (indvTriCount !== 0) {
-
-           
-            compute_normals();
-
-            // 0 and 1
-            vertBuffer[0] = x + 0.5;
-            vertBuffer[1] = y;
-            vertBuffer[2] = z;
-            // 1 and 2
-            vertBuffer[3] = x + 1;
-            vertBuffer[4] = y;
-            vertBuffer[5] = z + 0.5;
-            // 2 and 3
-            vertBuffer[6] = x + 0.5;
-            vertBuffer[7] = y;
-            vertBuffer[8] = z + 1;
-            // 3 and 0
-            vertBuffer[9]  = x;
-            vertBuffer[10] = y;
-            vertBuffer[11] = z + 0.5;
-            // 4 and 5
-            vertBuffer[12] = x + 0.5;
-            vertBuffer[13] = y + 1;
-            vertBuffer[14] = z;
-            // 5 and 6
-            vertBuffer[15] = x + 1;
-            vertBuffer[16] = y + 1;
-            vertBuffer[17] = z + 0.5;
-            // 6 and 7
-            vertBuffer[18] = x + 0.5;
-            vertBuffer[19] = y + 1;
-            vertBuffer[20] = z + 1;
-            // 7 and 4
-            vertBuffer[21] = x;
-            vertBuffer[22] = y + 1;
-            vertBuffer[23] = z + 0.5;
-            // 0 and 4
-            vertBuffer[24] = x;
-            vertBuffer[25] = y + 0.5;
-            vertBuffer[26] = z;
-            // 1 and 5
-            vertBuffer[27] = x + 1;
-            vertBuffer[28] = y + 0.5;
-            vertBuffer[29] = z;
-            // 2 and 6
-            vertBuffer[30] = x + 1;
-            vertBuffer[31] = y + 0.5;
-            vertBuffer[32] = z + 1;
-            // 3 and 7
-            vertBuffer[33] = x;
-            vertBuffer[34] = y + 0.5;
-            vertBuffer[35] = z + 1;
-            
-
-
-
-
-
-
-
-            cubeIndex <<= 4; // mult by 16 (triTable row width)
-
-            var j = cubeIndex;
-
-            for (var m = indvTriCount - 1; m >= 0; --m) {
-              var startIdx = curTriCount * 9;
-              var vert1 = triTable[j] * 3;
-              var vert2 = triTable[j + 1] * 3;
-              var vert3 = triTable[j + 2] * 3;
-
-
-              j+=3;
-
-              meshVertices[startIdx] = vertBuffer[vert1] / (X_DIM);
-              meshVertices[startIdx+1] = vertBuffer[vert1+1] / (Y_DIM);
-              meshVertices[startIdx+2] = vertBuffer[vert1+2] / (Z_DIM);
-
-              meshNormals[startIdx] = normBuffer[vert1];
-              meshNormals[startIdx+1] = normBuffer[vert1+1];
-              meshNormals[startIdx+2] = normBuffer[vert1+2];
-
-
-              meshVertices[startIdx+3] = vertBuffer[vert2] / (X_DIM);
-              meshVertices[startIdx+4] = vertBuffer[vert2+1] / (Y_DIM);
-              meshVertices[startIdx+5] = vertBuffer[vert2+2] / (Z_DIM);
-
-              meshNormals[startIdx+3] =  normBuffer[vert2];
-              meshNormals[startIdx+4] = normBuffer[vert2+1];
-              meshNormals[startIdx+5] = normBuffer[vert2+2];
-
-
-              meshVertices[startIdx+6] = vertBuffer[vert3] / (X_DIM);
-              meshVertices[startIdx+7] = vertBuffer[vert3+1] / (Y_DIM);
-              meshVertices[startIdx+8] = vertBuffer[vert3+2] / (Z_DIM);
-
-              meshNormals[startIdx+6] =  normBuffer[vert3];
-              meshNormals[startIdx+7] = normBuffer[vert3+1];
-              meshNormals[startIdx+8] = normBuffer[vert3+2];
-
-              curTriCount++;
-            }
-
-          }
-          }
-        }
+      if (count === undefined ) {
+        return undefined;
       }
   
       var segGeo = new THREE.BufferGeometry();
+      var meshVertices = new Float32Array(count.meshVertices);
+      var meshNormals = new Float32Array(count.meshNormals);
+
       segGeo.addAttribute('position', new THREE.BufferAttribute(meshVertices, 3));
       segGeo.addAttribute('normal', new THREE.BufferAttribute(meshNormals, 3));
 
@@ -540,7 +533,7 @@ angular.module('cubeApp')
       var end = window.performance.now();
 
       console.log('time', end - start);
-      console.log('triCount', triCount);
+      console.log('triCount', count.meshVertices.length);
 
       return segGeo;
     }
@@ -556,7 +549,7 @@ angular.module('cubeApp')
     3, 4, 4, 3, 4, 5, 5, 4, 4, 3, 5, 2, 5, 4, 2, 1, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 2, 3, 3, 2, 3, 4, 4, 5, 4, 5, 5, 2, 4, 3, 5, 4,
     3, 2, 4, 1, 3, 4, 4, 5, 4, 5, 3, 4, 4, 5, 5, 2, 3, 4, 2, 1, 2, 3, 3, 2, 3, 4, 2, 1, 3, 2, 4, 1, 2, 1, 1, 0]);
 
-  var triTable = new Uint8Array([
+  var triTable = new Uint32Array([
   - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
   0, 8, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
   0, 1, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,

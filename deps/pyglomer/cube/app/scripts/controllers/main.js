@@ -10,7 +10,7 @@
 
 angular.module('cubeApp').value('globals', {
   CHUNK_SIZE: 128,
-  CUBE_SIZE: new THREE.Vector3(512,512,128),
+  CUBE_SIZE: new THREE.Vector3(128,128,128),
 });
 
 angular.module('cubeApp')

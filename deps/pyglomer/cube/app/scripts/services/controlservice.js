@@ -219,28 +219,28 @@ angular.module('cubeApp')
 
       var duration = 500;
 
-      // new TWEEN.Tween(SegmentManager).to({ opacity: 0.8 }, duration)
-      // .onUpdate(function () {
-      //     needsRender = true;
-      // })
-      // .start();
-      console.log(sceneService.cube.position)
+      new TWEEN.Tween(meshService).to({ opacity: 0.8 }, duration)
+      .onUpdate(function () {
+          srv.needsRender = true;
+      })
+      .start();
 
       new TWEEN.Tween(sceneService.cube.position).to({x: -point.x, y: -point.y, z: !reset ? -tileService.planes.z.position.z + 0.5 : 0}, duration)
         .easing(TWEEN.Easing.Sinusoidal.InOut)
         .onUpdate(function () {
-          console.log(sceneService.cube.position)
-
-          // needsRender = true;
+          srv.needsRender = true;
         }).start();
 
 
-      // new TWEEN.Tween(srv.camera).to({viewHeight: 2/zoomLevel}, duration)
-      //   .easing(TWEEN.Easing.Sinusoidal.InOut).onUpdate(function () {
-      //     // needsRender = true;
-      //   }).onComplete(function () {
-      //     animating = false;
-      //   }).start();
+      console.log(zoomLevel);
+      console.log(srv.camera.viewHeight)
+
+      new TWEEN.Tween(srv.camera).to({viewHeight: 2/zoomLevel}, duration)
+        .easing(TWEEN.Easing.Sinusoidal.InOut).onUpdate(function () {
+          srv.needsRender = true;
+        }).onComplete(function () {
+          animating = false;
+        }).start();
     }
 
 
@@ -271,6 +271,8 @@ angular.module('cubeApp')
       if ( srv.enabled === false ) return;
       event.preventDefault();
       event.stopPropagation();
+      srv.mouse.x = (event.clientX / srv.screen.width) * 2 - 1; // why *2 - 1?
+      srv.mouse.y = -(event.clientY / srv.screen.height) * 2 + 1;
 
       if ( srv.state === srv.states.NONE ) {
         if (event.button === 0 /* TODO && !key("shift", HELD) && !key("ctrl", HELD)*/) {
@@ -295,6 +297,8 @@ angular.module('cubeApp')
 
       event.preventDefault();
       event.stopPropagation();
+      srv.mouse.x = (event.clientX / srv.screen.width) * 2 - 1; // why *2 - 1?
+      srv.mouse.y = -(event.clientY / srv.screen.height) * 2 + 1;
 
       if ( srv.state === srv.states.ROTATE && !srv.noRotate ) {
         srv.rotateEnd.copy( getMouseProjectionOnBall( event.pageX, event.pageY ) );
@@ -309,6 +313,8 @@ angular.module('cubeApp')
         event.stopPropagation();
 
       srv.state = srv.states.NONE;
+      srv.mouse.x = (event.clientX / srv.screen.width) * 2 - 1; // why *2 - 1?
+      srv.mouse.y = -(event.clientY / srv.screen.height) * 2 + 1;
 
       document.removeEventListener( 'mousemove', mousemove );
       document.removeEventListener( 'mouseup', mouseup );
@@ -356,7 +362,6 @@ angular.module('cubeApp')
       if (keyboardService.key('z', keyboardService.HELD)) {
 
           var point = srv.getPositionOnTileFromMouse();
-          console.log(point);
           if (point) {
             srv.animateToPositionAndZoom(point, 4);
           }
@@ -580,7 +585,7 @@ angular.module('cubeApp')
       srv.raycaster.setFromCamera(srv.mouse, srv.camera.realCamera);
       var intersects = srv.raycaster.intersectObject(tileService.planes.z);
 
-      if (intersects.length === 1) {
+      if (intersects.length >= 1) {
         var point = intersects[0].point;
         point.applyQuaternion(sceneService.pivot.quaternion.clone().inverse());
         point.sub(sceneService.cube.position);

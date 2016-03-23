@@ -6,6 +6,8 @@ import numpy as np
 from itertools import product
 from collections import namedtuple
 from pyspark.sql.types import *
+import os
+from graphframes import *
 
 class Dataset(object):
 
@@ -19,6 +21,20 @@ class Dataset(object):
     self.chunks = None
     self._get_subvolumes()
 
+    if not os.path.isdir(self.files('vertices')) or not os.path.isdir(self.files('edges')):
+      self.compute_voxel_features()
+      self.g = GraphFrame(self.nodes, self.edges)
+      self.g.vertices.write.parquet(self.files('vertices'))
+      self.g.edges.write.parquet(self.files('edges'))
+    else:
+      # Load the vertices and edges back.
+      sameV =  self.sqlContext.read.parquet(self.files('vertices'))
+      sameE =  self.sqlContext.read.parquet(self.files('edges'))
+      self.g = GraphFrame(sameV, sameE)
+
+    self.g.vertices.registerTempTable('vertices')
+    self.g.edges.registerTempTable('edges')
+
 
   def _import_hdf5(self, chunk_size=128, overlap=1 ):
 
@@ -31,6 +47,7 @@ class Dataset(object):
     shape =  np.array(f['main'].shape)
     n_chunks = np.ceil( shape / float(chunk_size)).astype(int)
     n_chunks = np.maximum( n_chunks , np.array([1,1,1]))
+    n_chunks = np.minimum( n_chunks, np.array([1,4,4]))
 
     for chunk in product(*list(map(range,n_chunks))):
 
@@ -136,9 +153,9 @@ class Dataset(object):
     else:
 
       files = {
-        'channel': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/ew_channel.h5',
-        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/ew_machine_labels.h5',
-        'human_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/ew_machine_labels.h5',
+        'channel': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/channel.h5',
+        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/machine_labels.h5',
+        'human_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/machine_labels.h5',
         'affinities': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/affinities.h5',
         'vertices': './pyglomer/spark/tmp/vertices',
         'edges': './pyglomer/spark/tmp/edges'

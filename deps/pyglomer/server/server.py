@@ -37,7 +37,6 @@ class MainHandler(tornado.web.RequestHandler):
 
 class TileHandler(tornado.web.RequestHandler):
 
-  @profile
   def get(self, type, mip, x, y, z, lower, upper):
     mip, x, y, z, lower, upper = int(mip), int(x), int(y), int(z), int(lower), int(upper)
 
@@ -52,7 +51,7 @@ class TileHandler(tornado.web.RequestHandler):
 
         spark_channel[:chann.shape[2]-1,:chann.shape[1]-1,:chann.shape[0]-1] = chann[:chann.shape[0]-1,:chann.shape[1]-1,:chann.shape[2]-1].transpose((2,1,0))
         spark_segmentation[:seg.shape[2]-1,:seg.shape[1]-1,:seg.shape[0]-1] = seg[:seg.shape[0]-1,:seg.shape[1]-1,:seg.shape[2]-1].transpose((2,1,0))
-        # spark_segmentation[0:100,2:125,2:125] = 1
+        # spark_segmentation[:50,:50,:50] = 1
 
       if type == 'channel':
         chunk = spark_channel
@@ -103,7 +102,6 @@ class EdgesHandler(tornado.web.RequestHandler):
     self.finish()
 
 class TaskHandler(tornado.web.RequestHandler):
-  @profile
   def get(self):
     task = {
       'cell_id': 1860,

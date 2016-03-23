@@ -47,10 +47,10 @@ angular.module('cubeApp')
         set viewHeight(vH) {
           this._viewHeight = vH;
           this.fakeViewHeight = simpleViewHeight(perspFov, vH);
-          this.fov = srv.fov; // hahaha
+          this.fov = this.fov;  //it is calling get on and then set
         },
         get viewHeight() {
-          return srv._viewHeight;
+          return this._viewHeight;
         },
         get fov() {
           return realCamera.fov;
@@ -113,6 +113,8 @@ angular.module('cubeApp')
       webGLContainer.appendChild(srv.renderer.domElement);
 
       srv.camera = srv.create_camera(40, 0.1, 2);
+      window.camera = srv.camera
+
 
       srv.scene.add(srv.camera.realCamera);
    
