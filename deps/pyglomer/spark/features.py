@@ -26,7 +26,7 @@ class SegmentSize(VoxelFeature):
                     :end_without_overlap[1],
                     :end_without_overlap[2]]
     for seg in data.flatten():
-      segment_size[(seg,)] += 1
+      segment_size[seg] += 1
 
     return segment_size.iteritems()
 

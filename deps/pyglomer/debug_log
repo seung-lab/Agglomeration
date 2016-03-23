@@ -1,0 +1,15 @@
+[23866, 23873] looking for (1772,21783) 
+
+
+              [23866, 23873]
+  [(2280, 23866)        (21783, 23866)]
+
+  [(2280, 21609)]    [(1772, 21783), (21609, 21783)]
+                     [(189, 1772)]  [(189, 21609)]
+
+     
+self.df_edges.filter("src = 21609 and dst = 21783").show()
+
+(1772,21783)  doesn't exists, but it is marked as it doens't require updates
+(21609, 21783) doesn't needs update either, but it is not in df_edges
+(189, 1772) exists
