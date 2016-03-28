@@ -19,16 +19,16 @@ class SegmentSize(VoxelFeature):
 
   @staticmethod
   def map(vol):
-    segment_size = defaultdict(int)
-
     end_without_overlap = vol.machine_labels.shape - vol.overlap
     data = vol.machine_labels[:end_without_overlap[0],
                     :end_without_overlap[1],
                     :end_without_overlap[2]]
-    for seg in data.flatten():
-      segment_size[seg] += 1
 
-    return segment_size.iteritems()
+    unique, counts = np.unique(data , return_counts=True)
+    
+    segment_sizes = dict(zip(unique, counts))
+
+    return segment_sizes.iteritems()
 
   @staticmethod
   def reduce(size_a, size_b):

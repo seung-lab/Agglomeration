@@ -15,7 +15,7 @@ from heapq import *
 class SparkServer(object):
   def __init__(self):
 
-    conf = SparkConf().setMaster("local[1]").setAppName("Agglomerator")
+    conf = SparkConf().setMaster("local[16]").setAppName("Agglomerator")
     conf.set("spark.executor.memory", "5g")
     conf.set("spark.executor.cores", 1)
     conf.set("spark.driver.memory","5g")
@@ -29,12 +29,11 @@ class SparkServer(object):
     self.dataset = Dataset(self.sc,  self.sqlContext)
     self.graph = Graph(self.sc , self.sqlContext, self.dataset.vertices, self.dataset.edges)
 
-    for batch in range(3):
+    for batch in range(5):
       print 'batch = ' + str(batch)
       self.graph.info()
       self.graph.agglomerate()
-    # self.graph.agglomerate()
-    # self.graph.info()
+ 
 
   
     # Vertex DataFrame

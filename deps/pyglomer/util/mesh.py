@@ -6,8 +6,8 @@ from collections import defaultdict
 import itertools
 
 #For visualization
-from tvtk.api import tvtk
-from mayavi import mlab
+# from tvtk.api import tvtk
+# from mayavi import mlab
 
 #To export openctm meshes
 from ctypes import *

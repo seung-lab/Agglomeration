@@ -7,6 +7,7 @@ from pyspark.sql.types import *
 from pyspark.sql import Row
 
 
+
 class Edge(object):
 
   def __init__(self, edge_tuple ):
@@ -43,8 +44,6 @@ class Graph(object):
     self.nx_g = nx.Graph()
     self.populate_nx_from_df()
 
-
-
   def create_node(self, vertex_id=None, children = []):
     if vertex_id == None:
       vertex_id = self.next_node_id
@@ -54,16 +53,18 @@ class Graph(object):
     
     #If it has childrens this node has to be created based on them
     needs_update = len(children) > 0 
-    self.nx_g.add_node( vertex_id, needs_update=needs_update)
-    self.node_dendogram.add_node(vertex_id)
+    self.nx_g.add_node( vertex_id)
+    self.node_dendogram.add_node(vertex_id, needs_update=needs_update)
     for child in children:
       self.node_dendogram.add_edge(vertex_id,child)
     return vertex_id
 
   def create_edge(self, one, another, weight=None , children = []):
+
+    assert one in self.node_dendogram and another in self.node_dendogram
+
     #src should be always smaller done the destination
     one , another = self.sort_tuple(one, another)
-
     self.nx_g.add_edge( one, another, weight= weight )
 
     #If it has childrens this edge has to be created based on them
@@ -75,13 +76,14 @@ class Graph(object):
       child = self.sort_tuple(*child)
       self.edge_dendogram.add_edge( (one, another) , child)
 
+
   def populate_nx_from_df(self):
     nodes_ids = self.sqlContext.sql("select id from nodes").collect()
     map(lambda row: self.create_node(row.id) , nodes_ids)
-    edges =  self.sqlContext.sql("select src, dst, weight from edges").collect()
 
+    edges =  self.sqlContext.sql("select src, dst, weight from edges").collect()
     def add_edge(edge):
-      assert edge.src < edge.dst,'edge src has to be smaller than edge.dst'
+      assert edge.src < edge.dst, 'edge src has to be smaller than edge.dst'
       self.create_edge(edge.src, edge.dst, edge.weight)
 
     map(add_edge, edges)
@@ -99,8 +101,9 @@ class Graph(object):
     nodes_to_merge = list()
     #sort edges from largest weight to smallest one, 
     #largest weight menas that it is more probable that two pieces should go together
-    sorted_edges = filter(lambda edge: Edge(edge).weight > .85, sorted(self.nx_g.edges(data=True), key=lambda edge: Edge(edge).weight, reverse=True))
-    print sorted_edges
+    sorted_edges = self.nx_g.edges(data=True)
+    sorted_edges = filter(lambda edge: Edge(edge).weight > 0.75, sorted_edges)
+    sorted_edges = list(sorted(sorted_edges , key=lambda edge: Edge(edge).weight, reverse=True))
     for edge in sorted_edges:
       edge = Edge(edge)
 
@@ -109,9 +112,13 @@ class Graph(object):
       #used for some other merge operation
       if not self.nx_g.has_edge(edge.src, edge.dst):
         continue
-
+      
       #create new vertex
       new_node = self.create_node(children=[edge.src, edge.dst])
+
+      # if new_node == 21593 or edge.src == 21593 or edge.dst == 21593:
+      #   import ipdb; ipdb.set_trace()
+
       nodes_to_merge.append((new_node , edge.src, edge.dst))
       #Recompute this edges because at least one of the nodes
       #has changed
@@ -145,6 +152,12 @@ class Graph(object):
   def merge_nodes(self, nodes_to_merge):
     #TODO modify this so it doesn't require an argument, and it only uses the dendogram
     #maybe we can keep a list of nodes add which needs_update
+
+    #TODO we are leaving the edge that connect this two nodes in df_edges
+    #maybe we need the edge features when merge the two nodes.
+    if len(nodes_to_merge) == 0:
+      print 'no nodes to merge'
+      return
 
     schema = StructType([StructField('new_id',LongType()), StructField('u',LongType()),StructField('v',LongType())])
     to_merge = self.sqlContext.createDataFrame(nodes_to_merge,schema)
@@ -202,28 +215,27 @@ class Graph(object):
 
   def update_edges(self):
 
-    def get_successors_edges_which_not_need_updates(edge, l_edge=[] ):
+    def get_successors_edges_which_not_need_updates(edge):
 
+      edges = []
       for succesor in self.edge_dendogram.successors_iter( edge ):
         succesor = self.sort_tuple(*succesor)
 
         if self.edge_dendogram.node[succesor]['needs_update']:
-          l_edge = l_edge + get_successors_edges_which_not_need_updates(succesor, l_edge)
+          edges = edges + get_successors_edges_which_not_need_updates(succesor)
         else:
-          l_edge.append( succesor )
+          edges.append( succesor )
 
-      return l_edge
+      return edges
 
 
     edges_to_update = {}
     rows_to_get = []
     for edge in self.get_edges_to_update():
       edges_to_update[edge] = get_successors_edges_which_not_need_updates(edge)
-      # self.edge_dendogram.node[edge]['needs_update'] = False
+      self.edge_dendogram.node[edge]['needs_update'] = False
       for existent_edge in edges_to_update[edge]:
         rows_to_get.append( (edge , existent_edge[0],existent_edge[1]) )
-
-
 
     schema = StructType([StructField('new_edge',ArrayType(LongType())),
                          StructField('src',LongType()),
@@ -234,12 +246,9 @@ class Graph(object):
                            from edges_to_update as eu
                            LEFT JOIN edges as e on eu.src = e.src AND eu.dst = e.dst""")
 
-    # rows2 = self.sqlContext.sql("""select eu.*,  e.*
-    #                        from edges_to_update as eu
-    #                        LEFT JOIN edges as e on eu.src = e.src AND eu.dst = e.dst""")
-    # rows2.filter("weight is null").show()
-    #Convert dataframe in a key value rdd so that I can reduce by key
-    #this is used to merge the features
+    if len(edges_to_update)  == 0:
+      return
+
     kv = rows.rdd.map(lambda row: ( tuple(row.new_edge) , (row.weight,)) ) #I have to convert to tuples here, otherwise it is unhasable and cannot get reduce
     def merge_edges(edge_1, edge_2):
       weight_1 = edge_1[0]
@@ -252,18 +261,17 @@ class Graph(object):
     new_edges.registerTempTable('new_edges')
 
     def compute_new_weight(row): #TODO finish this
-      return Row(src= row.src, dst=row.dst, weight=row.weight)
+      assert row.src < row.dst
+      return (row.src, row.dst, row.weight)
 
-    triplets = self.sqlContext.sql("""select u.* , v.*, ne.*
+    triplets = self.sqlContext.sql("""select ne.src as src, ne.dst as dst, ne.weight as weight,
+                            u.* , v.*
                            FROM new_edges as ne
                            INNER JOIN nodes as u on ne.src = u.id 
                            INNER JOIN nodes as v on ne.dst = v.id""")
+
     triplets = triplets.map(compute_new_weight).toDF(['src','dst','weight'])
-
-    triplets.filter("src = 1772 and dst = 21783").show()
-
     self.df_edges = self.df_edges.unionAll(triplets)
-    self.df_edges.filter("weight is null").show()
 
     #remove old edges
     # edges_to_remove = self.sc.broadcast(set(edges_to_remove))
@@ -299,29 +307,3 @@ class Graph(object):
     T=nx.minimum_spanning_tree(self.g)
     print(sorted(T.edges(data=True)))
 
-  # def get_next_edges_to_merge_unfiltered(self):
-  #   """ Return the edges we are most CERTAIN about merging,
-  #       This is used by greedy agglomeration"""
-
-  #   edges =  self.sqlContext.sql("""select e.src, e.dst, e.weight
-  #                     FROM edges as e
-  #                     INNER JOIN vertices as v1 on e.src = v1.id
-  #                     INNER JOIN vertices as v2 on e.dst = v2.id
-  #                     WHERE (v1.size > 100000 and v2.size > 10000)
-  #                     OR (v1.size > 10000 and v2.size > 100000)
-  #                     order by e.mean_affinity DESC""").collect()
-
-  #   return edges
-
-  # def get_next_edges_to_ask(self):
-  #   """ Return the edges we are most UNCERTAIN about merging,
-  #       This edges are sent to proofreaders."""
-
-  #   edges =  self.sqlContext.sql("""select e.src, e.dst, e.mean_affinity
-  #                     FROM edges as e
-  #                     INNER JOIN vertices as v1 on e.src = v1.id
-  #                     INNER JOIN vertices as v2 on e.dst = v2.id
-  #                     WHERE (v1.size > 100000 and v2.size > 10000)
-  #                     OR (v1.size > 10000 and v2.size > 100000)
-  #                     order by abs(0.5 - e.mean_affinity)""").collect()
-  #   return edges

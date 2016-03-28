@@ -9,8 +9,8 @@
  */
 
 angular.module('cubeApp').value('globals', {
-  CHUNK_SIZE: 128,
-  CUBE_SIZE: new THREE.Vector3(128,128,128),
+  CHUNK_SIZE: 64,
+  CUBE_SIZE: new THREE.Vector3(384,384,64),
 });
 
 angular.module('cubeApp')

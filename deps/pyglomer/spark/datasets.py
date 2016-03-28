@@ -8,6 +8,9 @@ from collections import namedtuple
 from pyspark.sql.types import *
 import os
 
+ImportTask = namedtuple('ImportTask', ['chunk_pos', 'start', 'end' , 'overlap' , 'files']) 
+SubVolume = namedtuple('SubVolume', ['chunk', 'channel', 'machine_labels','human_labels','affinities', 'start', 'end' , 'overlap']) 
+
 class Dataset(object):
 
   def __init__(self, sc, sqlContext):
@@ -29,38 +32,59 @@ class Dataset(object):
       self.vertices =  self.sqlContext.read.parquet(self.files('vertices'))
       self.edges =  self.sqlContext.read.parquet(self.files('edges'))
 
-  def _import_hdf5(self, chunk_size=128, overlap=1 ):
 
-    ImportTask = namedtuple('ImportTask', ['chunk_pos', 'start', 'end' , 'overlap' , 'files']) 
-    importTasks = []
+  def get_shape(self):
 
     f = h5py.File(self.files('machine_labels'),'r')
-    if 'main' not in f: raise ImportError("Main dataset doesn't exists")
-
+    if 'main' not in f: 
+      raise ImportError("Main dataset doesn't exists")
     shape =  np.array(f['main'].shape)
+    f.close()
+    return shape
+
+  def import_hdf5(self, chunk_size=64, overlap=1 ):
+    """
+      This code is executed in the master node.
+      It opens the hdf5 files:
+        * channel images
+        * machine labels ( the output from watershed )
+        * human labels ( and optional segmentation created by humans)
+        * affinities ( the output from the conv nets where watershed was ran )
+      to verify they all have the right dataset with the right shape (TODO)
+      It divides the dataset into chunks, which all then import in parallel by the workers.
+    """
+
+    import_tasks = []
+    shape = self.get_shape()
+
     n_chunks = np.ceil( shape / float(chunk_size)).astype(int)
     n_chunks = np.maximum( n_chunks , np.array([1,1,1]))
-    n_chunks = np.minimum( n_chunks, np.array([1,4,4]))
+    # n_chunks = np.minimum( n_chunks, np.array([1,4,4]))
 
     for chunk in product(*list(map(range,n_chunks))):
 
       start = np.maximum(np.array(chunk) * chunk_size, np.array([0,0,0]))
-      end =  np.minimum((np.array(chunk) + 1)* chunk_size + overlap, shape)
-      chunk_overlap = (end == shape) * overlap
+      end =  np.minimum((np.array(chunk) + 1) * chunk_size + overlap, shape)
+      chunk_overlap = (end != shape) * overlap
 
       files = { 'channel': self.files('channel'),
                 'machine_labels': self.files('machine_labels'),
                 'human_labels': self.files('human_labels'),
                 'affinities': self.files('affinities')}
       it = ImportTask( chunk , start, end , chunk_overlap , files)
-      importTasks.append(it)
+      import_tasks.append(it)
       
-    f.close()
-    return importTasks
+    return import_tasks
 
   @staticmethod
   def _get_subvolume( it ):
-    SubVolume = namedtuple('SubVolume', ['chunk','channel', 'machine_labels','human_labels','affinities', 'start', 'end' , 'overlap']) 
+    """
+      This code is executed by the worker, it runs an ImportTask which was created by
+      import_hdf5.
+
+      This method has to be static, because the class has a copy of the sparkContext
+      which cannot be referenced by any worker.
+    """
 
     data = {}
     for h5file in ['channel','machine_labels', 'human_labels' , 'affinities']:
@@ -92,7 +116,7 @@ class Dataset(object):
 
   def _get_subvolumes(self):
     
-    volumes = self._import_hdf5()
+    volumes = self.import_hdf5()
     volumes = self.sc.parallelize(volumes)
     self.subvolumes = volumes.map(self._get_subvolume)
     self.chunks = self.subvolumes.map(lambda subvolume: (subvolume.chunk, (subvolume.channel, subvolume.machine_labels))).cache()
@@ -112,9 +136,10 @@ class Dataset(object):
         #The src should always be an smaller id that the dst
         if edge[0] > edge[1]:
           edge[0] , edge[1] = edge[1] , edge[0]
+
         edges.append( edge + (mean,) )
 
-
+        
     self.edges = self.sqlContext.createDataFrame(edges, ['src','dst','weight'])
     ss = features.SegmentSize()
     sizes = self.subvolumes.flatMap(ss.map).reduceByKey(ss.reduce).map(to_row).toDF(['id','size'])
@@ -130,8 +155,8 @@ class Dataset(object):
     #nx.write_gpickle(self.g.g , self.files('graph'))
     return
 
-
-  def files(self, file):
+  @staticmethod
+  def files(file):
     production = False
 
     if production:
@@ -150,10 +175,10 @@ class Dataset(object):
     else:
 
       files = {
-        'channel': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/channel.h5',
-        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/machine_labels.h5',
-        'human_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/machine_labels.h5',
-        'affinities': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/affinities.h5',
+        'channel': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/small_ch_dr5.h5',
+        'machine_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/small_ml_dr5.h5',
+        'human_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/small_ml_dr5.h5',
+        'affinities': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/small_aff_dr5.h5',
         'vertices': './pyglomer/spark/tmp/vertices',
         'edges': './pyglomer/spark/tmp/edges'
       }

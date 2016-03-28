@@ -8,8 +8,74 @@
                      [(189, 1772)]  [(189, 21609)]
 
      
-self.df_edges.filter("src = 21609 and dst = 21783").show()
+self.df_edges.filter("src = 1772 and dst = 21783").show()  doesn't exists but if you reverse de ids it does
+self.df_edges.filter("src = 1772 and dst = 21783").show()
 
 (1772,21783)  doesn't exists, but it is marked as it doens't require updates
 (21609, 21783) doesn't needs update either, but it is not in df_edges
 (189, 1772) exists
+
+
+[24381, 25024] looking for 19703 23740
+
+
+
+self.edge_dendogram.node[(24381, 25024)]
+{'needs_update': False}
+
+self.edge_dendogram.successors((24381, 25024))
+[(23740, 24381)]
+
+ipdb> self.edge_dendogram.successors((23740, 24381))
+[(19703, 23740), (22266, 23740)]
+      
+
+                        [24381, 25024] 
+                        don't need update, correct
+
+
+                        [(23740, 24381)] 
+                        needs update, correct
+
+[(19703, 23740)                                   (22266, 23740)]
+{'needs_update': False}     
+not in df_edges
+node 23740 does not exists
+
+
+
+
+                          node 23740
+                      {'needs_update': False}
+                      not in df_nodes
+
+            [20889                               21593]
+            empty dict                           doesn't need update
+            exists in df_nodes                  exists in df_nodes
+            no successors                 [21244, 19967]
+                 
+
+--------------------------------------------------------------------
+                          [16608, 16792]    looking for 15856 - 16475
+
+
+                          [(15856, 16608)]
+                          {'needs_update': True}
+
+
+                          [(15856, 16475)]  ---------------------------------> edge 16475 does not exists
+                          {'needs_update': False}
+                          does not exist in df_edges
+
+                          [(15767, 15856)]
+                          does not exists in df_edges
+                          {'needs_update': True}
+
+
+                          [(14233, 15767)]
+                          does not exists in df_edges
+                          {'needs_update': True}
+
+                          [(13, 14233)]
+                          exists in df_edges
+                          {'needs_update': False}
