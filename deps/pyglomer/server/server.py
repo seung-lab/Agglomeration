@@ -41,12 +41,14 @@ class EdgesHandler(tornado.web.RequestHandler):
 
   def post(self, volume_id):
     decision = json.loads(self.request.body)
-    spark.get_human_decision(decision)
+    spark.set_human_decision(decision)
 
     self.set_header("Content-Type", "text/plain")
     self.set_header('Access-Control-Allow-Origin', '*')
     self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS') 
     self.set_status(200)
+    edge = spark.get_edge()
+    return_json(self, edge)
     self.finish()
 
 

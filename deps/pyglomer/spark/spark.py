@@ -12,6 +12,8 @@ pp = pprint.PrettyPrinter(indent=2, depth=5)
 
 from heapq import *
 
+decisions_since_last_agglomeration = 0
+
 class SparkServer(object):
   def __init__(self):
 
@@ -29,15 +31,26 @@ class SparkServer(object):
     self.dataset = Dataset(self.sc,  self.sqlContext)
     self.graph = Graph(self.sc , self.sqlContext, self.dataset.vertices, self.dataset.edges)
 
-    for batch in range(1):
+    self.edges = []
+    self.edge_index = 0
+
+    for batch in range(8):
       print 'batch = ' + str(batch)
       self.graph.agglomerate()
 
   def get_edge(self):
-    return self.graph.get_edge_for_humans();
 
-  def get_human_decision(self, decision):
+    if len(self.edges) == self.edge_index:
+      self.edges = self.graph.get_edges_for_humans()
+      self.edge_index = 0
+    else:
+      self.edge_index += 1
 
+    return self.edges[self.edge_index] 
+
+  def set_human_decision(self, decision):
+
+    global decisions_since_last_agglomeration
     print 'decision submited' , decision
     if decision['answer'] == 'y':
       new_weight = 1.0
@@ -45,7 +58,12 @@ class SparkServer(object):
       new_weight = 0.0
 
     self.graph.set_edge_weight(decision['edge'] , new_weight)
-    self.graph.agglomerate()
+
+    decisions_since_last_agglomeration += 1
+
+    if decisions_since_last_agglomeration > 20:
+      decisions_since_last_agglomeration = 0
+      self.graph.agglomerate()
 
 
 if __name__ == '__main__':

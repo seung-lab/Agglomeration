@@ -95,14 +95,14 @@ class Graph(object):
     else:
       return elem_2, elem_1
 
-
+  @profile
   def agglomerate(self):
 
     nodes_to_merge = list()
     #sort edges from largest weight to smallest one, 
     #largest weight menas that it is more probable that two pieces should go together
     sorted_edges = self.nx_g.edges(data=True)
-    sorted_edges = filter(lambda edge: Edge(edge).weight > 0.99, sorted_edges)
+    sorted_edges = filter(lambda edge: Edge(edge).weight > 0.7, sorted_edges)
     sorted_edges = list(sorted(sorted_edges , key=lambda edge: Edge(edge).weight, reverse=True))
     for edge in sorted_edges:
       edge = Edge(edge)
@@ -147,10 +147,6 @@ class Graph(object):
 
       assert edge.src not in self.nx_g
       assert edge.dst not in self.nx_g
-
-      if edge.src == 3191 and edge.dst == 16031:
-        import ipdb; ipdb.set_trace()
-
       assert self.nx_g.has_edge(edge.src, edge.dst) == False
 
     self.merge_nodes(nodes_to_merge)
@@ -159,7 +155,8 @@ class Graph(object):
 
     #If an edge doesn't have a weight attribute I should update it
     # print self.nx_g.edges(data="weight")
-
+  
+  @profile
   def merge_nodes(self, nodes_to_merge):
     #TODO modify this so it doesn't require an argument, and it only uses the dendogram
     #maybe we can keep a list of nodes add which needs_update
@@ -223,7 +220,8 @@ class Graph(object):
       items_to_update.append(item)
 
     return items_to_update
-
+ 
+  @profile
   def update_edges(self):
 
     def get_successors_edges_which_not_need_updates(edge):
@@ -244,11 +242,6 @@ class Graph(object):
     for edge in self.get_edges_to_update():
       edges_to_update[edge] = get_successors_edges_which_not_need_updates(edge)
       self.edge_dendogram.node[edge]['needs_update'] = False
-
-
-      if edge[0] == 3191 and edge[1] == 16031:
-        import ipdb; ipdb.set_trace()
-
 
       for existent_edge in edges_to_update[edge]:
         rows_to_get.append( (edge , existent_edge[0],existent_edge[1]) )
@@ -304,7 +297,7 @@ class Graph(object):
     self.df_edges.registerTempTable('edges')
 
 
-  def get_edge_for_humans(self):
+  def get_edges_for_humans(self):
     def get_atomic_supervoxels(node):
       atomics = set()
       successors = list(self.node_dendogram.successors_iter( node ))
@@ -324,11 +317,16 @@ class Graph(object):
 
     sorted_edges = filter(lambda edge: Edge(edge).weight < 0.75, sorted_edges)
     sorted_edges = list(sorted(sorted_edges , key=edge_priority))
-    edge = sorted_edges[0]
 
-    atomic_1 = list(get_atomic_supervoxels(edge[0]))
-    atomic_2 = list(get_atomic_supervoxels(edge[1]))
-    response = { "edge": [edge[0],edge[1]] , "atomic_1":atomic_1, "atomic_2":atomic_2 }
+    responses = []
+    for edge in sorted_edges:
+      atomic_1 = list(get_atomic_supervoxels(edge[0]))
+      atomic_2 = list(get_atomic_supervoxels(edge[1]))
+      response = { "edge": [edge[0],edge[1]] , "atomic_1":atomic_1, "atomic_2":atomic_2 }
+      responses.append(response)
+
+      if len(responses) == 40:
+        return responses
 
     return response
 

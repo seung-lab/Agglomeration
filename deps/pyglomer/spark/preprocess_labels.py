@@ -1,19 +1,24 @@
 import h5py
 import numpy as np
-f = h5py.File('/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/small_ml_dr5.h5','r')
+f = h5py.File('/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/ground_truth_dr5.h5','r')
 
-unique, counts = np.unique(f['main'] , return_counts=True)
-    
+unique, counts = np.unique(f['main'] , return_counts=True)   
 segment_sizes = dict(zip(unique, counts))
 
-# seg_id = 11857
-seg_id = 14461
-print segment_sizes[seg_id]
+print len(segment_sizes)
 
-x,y,z =  np.where(f['main'][:,:,:] == seg_id)
+# # seg_id = 11857
+# seg_id = 14461
+# print segment_sizes[seg_id]
 
-for i in range(len(x)):
-  print x[i], y[i], z[i]
+# x,y,z =  np.where(f['main'][:,:,:] == seg_id)
+
+# for i in range(len(x)):
+#   print x[i], y[i], z[i]
+
+
+
+#crop dataset
 # f.create_dataset("fixed", (64,384,384), dtype='uint32', chunks=(64,64,64))
 # f['fixed'][:,:,:] = f['main'][:64,:384,:384]
 # s = np.asarray(f['fixed'].shape) - 1
@@ -24,7 +29,10 @@ for i in range(len(x)):
 # f['fixed'][:,s[1],:] = 0
 # f['fixed'][:,:,s[2]] = 0
 
-#find . -type f -exec gzip "{}" \; -exec mv "{}.gz" "{}" \;
 
 
 f.close()
+
+
+#gzip everything
+#find . -type f -exec gzip "{}" \; -exec mv "{}.gz" "{}" \;

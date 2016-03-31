@@ -39,8 +39,7 @@ angular.module('cubeApp')
       }).then(function successCallback(response) {
           // this callback will be called asynchronously
           // when the response is available
-          srv.current_edge = response.data.edge;
-          console.log(response.data.edge);
+          srv.current_edge = response.data;
           callback(response.data);
 
         }, function errorCallback(response) {
@@ -48,17 +47,20 @@ angular.module('cubeApp')
       });
     };
 
-    srv.submitEdgeDecision = function( decision ) {
+    srv.submitEdgeDecision = function( decision , callback ) {
 
       if (srv.current_edge == null) {
-        return;
+        srv.getNextEdge(callback);
+        return
       }
       
       $http({
         method: 'POST',
         url: srv.server+'/volume/'+srv.task.segmentation_id+'/edges',
-        data: { 'edge': srv.current_edge, 'answer': decision }
+        data: { 'edge': srv.current_edge.edge , 'answer': decision }
       }).then(function successCallback(response) {
+          srv.current_edge = response.data;
+          callback(response.data);
         }, function errorCallback(response) {
           console.error(response);
       });

@@ -1,0 +1,2 @@
+trimesh    pip install trimesh
+rtree      conda install --channel https://conda.anaconda.org/IOOS rtree

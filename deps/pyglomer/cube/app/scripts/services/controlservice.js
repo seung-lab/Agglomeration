@@ -380,22 +380,24 @@ angular.module('cubeApp')
       }
 
       if (keyboardService.key('y', keyboardService.PRESSED)) {
-        taskService.submitEdgeDecision('y');
-        next();
+        taskService.submitEdgeDecision('y', function(edge) {
+          next();
+        });
         tileService.draw();
       }
 
       if (keyboardService.key('n', keyboardService.PRESSED)) {
-        taskService.submitEdgeDecision('n');
-        next();
+        taskService.submitEdgeDecision('n', function(edge) {
+          next();
+        });
         tileService.draw();
       }
 
-      if (keyboardService.key('m', keyboardService.PRESSED)) {
-        taskService.submitEdgeDecision('m');
-        next();
-        tileService.draw();
-      }
+      // if (keyboardService.key('m', keyboardService.PRESSED)) {
+      //   taskService.submitEdgeDecision('m');
+      //   next();
+      //   tileService.draw();
+      // }
 
       var td = 0;
 

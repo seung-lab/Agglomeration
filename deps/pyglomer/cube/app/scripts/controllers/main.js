@@ -35,20 +35,17 @@ angular.module('cubeApp')
     });
 
     function displayNextEdge () {
-      if (!taskService.task) {return}
+      if (!taskService.task  || taskService.current_edge == null) {return}
       //Hide all the current visible meshes
       while( meshService.meshes.children.length ) {
         meshService.meshes.remove(meshService.meshes.children[0]);
       }
 
-      taskService.getNextEdge(function(edge){
-        meshService.displayEdge(edge, function(segment) {
-          if (segment) { //It could be null if the segment doesn't exists
-            //This function is called for every segment being loaded
-            animateDisplaySegment(segment);
-          }
-            
-        });
+      meshService.displayEdge(taskService.current_edge, function(segment) {
+        if (segment) { //It could be null if the segment doesn't exists
+              //This function is called for every segment being loaded
+          animateDisplaySegment(segment);
+        }  
       });
     }
     controlService.subscribe($scope, displayNextEdge);
