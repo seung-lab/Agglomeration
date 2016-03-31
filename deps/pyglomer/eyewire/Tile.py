@@ -26,15 +26,16 @@ def base64_to_array( string ):
     
 
 
-def array_to_base64( array ):
+def array_to_base64( array):
   #Why are transposing necessary, is this a bug in omni.server? column major vs row major?
   if array.dtype != np.uint8:
 
     #Segmentation
     array = np.copy(array)
-    array = array.view(np.uint8).reshape(128,128,4)
+    assert array.shape[0] == array.shape[1]
+    array = array.view(np.uint8).reshape(array.shape[0] ,array.shape[1] ,4)
     array[:,:,3] = 255
-    array = array.transpose((1,0,2))
+    # array = array.transpose((1,0,2))
   
 
     s = StringIO()

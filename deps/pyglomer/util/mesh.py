@@ -6,28 +6,35 @@ from collections import defaultdict
 import itertools
 
 #For visualization
-# from tvtk.api import tvtk
-# from mayavi import mlab
+from tvtk.api import tvtk
+from mayavi import mlab
 
 #To export openctm meshes
 from ctypes import *
 from openctm import *
 from StringIO import StringIO
 import tempfile
+
+#To fix normnals
+from trimesh import Trimesh
+
     
 def marche_cubes( ids , volume):
   """ Given a segmentation volume and set of ids, 
       it first computes a boolean volume, where every voxel 
       which correspond to an id present in the ids set is set to true.
       It then create a mesh in the boundaries between true and false.
+
+      The generated mesh guarantees coherent orientation as of 
+      version 0.12. of scikit-image
+
   """
 
   shape = volume.shape
   volume = np.in1d(volume,ids).reshape(shape)
 
   try:
-    vertices, triangles =  measure.marching_cubes(volume, 0.5)
-    triangles = measure.correct_mesh_orientation(volume, vertices, triangles,  gradient_direction='ascent')
+    vertices, triangles =  measure.marching_cubes(volume, 0.4)
 
   except Exception, e:
     return np.array([]), np.array([])
@@ -38,8 +45,79 @@ def marche_cubes( ids , volume):
 
   return vertices , triangles
 
+def normalize_v3(arr):
+    """ Normalize a numpy array of 3 component vectors shape=(n,3) """
+    lens = np.sqrt( arr[:,0]**2 + arr[:,1]**2 + arr[:,2]**2 )
+
+    #hack
+    lens[ lens== 0.0 ] = 1.0
+    
+    arr[:,0] /= lens
+    arr[:,1] /= lens
+    arr[:,2] /= lens                
+    return arr
+
+def compute_normals(vertices, triangles):
+  #Create a zeroed array with the same type and shape as our vertices i.e., per vertex normal
+  norm = np.zeros( vertices.shape, dtype=vertices.dtype )
+  #Create an indexed view into the vertex array using the array of three indices for triangles
+  tris = vertices[triangles]
+  #Calculate the normal for all the triangles, by taking the cross product of the vectors v1-v0, and v2-v0 in each triangle             
+  n = np.cross( tris[::,1 ] - tris[::,0]  , tris[::,2 ] - tris[::,0] )
+  # n is now an array of normals per triangle. The length of each normal is dependent the vertices, 
+  # we need to normalize these, so that our next step weights each normal equally.
+  normalize_v3(n)
+  # now we have a normalized array of normals, one per triangle, i.e., per triangle normals.
+  # But instead of one per triangle (i.e., flat shading), we add to each vertex in that triangle, 
+  # the triangles' normal. Multiple triangles would then contribute to every vertex, so we need to normalize again afterwards.
+  # The cool part, we can actually add the normals through an indexed view of our (zeroed) per vertex normal array
+  norm[ triangles[:,0] ] += n
+  norm[ triangles[:,1] ] += n
+  norm[ triangles[:,2] ] += n
+  normalize_v3(norm)
+
+  return norm
+
+def render_opengl(vertices, normals,  triangles):
+  import pygame
+  from pygame import locals as pyl
+
+  from OpenGL import GL as gl
+  from OpenGL import GLU
+  pygame.init()
+  display = (800,600)
+  pygame.display.set_mode(display,  pyl.DOUBLEBUF| pyl.OPENGL)
+
+  # To render without the index list, we create a flattened array where
+  # the triangle indices are replaced with the actual vertices.
+
+  # first we create a single column index array
+  tri_index = triangles.reshape( (-1) )        
+  # then we create an indexed view into our vertices and normals
+  va = vertices[ tri_index ]
+  va /= 128
+  no = normals[ tri_index ]        
+
+
+  while True:
+    for event in pygame.event.get():
+      if event.type == pygame.QUIT:
+        pygame.quit()
+        gl.quit()
+
+    gl.glEnableClientState( gl.GL_VERTEX_ARRAY )
+    gl.glEnableClientState( gl.GL_NORMAL_ARRAY )
+    gl.glVertexPointer( 3, gl.GL_FLOAT, 0, va )
+    gl.glNormalPointer( gl.GL_FLOAT,    0, no )
+    gl.glDrawArrays(gl.GL_TRIANGLES,    0, len(va) )
+    gl.glRotatef(1, 3, 1, 1)
+    gl.glClear(gl.GL_COLOR_BUFFER_BIT|gl.GL_DEPTH_BUFFER_BIT)
+    pygame.display.flip()
+    pygame.time.wait(10)
+
+
 def get_adjacent( vertices, triangles ):
-  """ Converts the clasical repretesentation of a mesh,
+  """ Converts the clasical repretesentation of a mesh
       to a hash table of adjacency of vertices.
       Clasical repretesentation meaning a list of triples
       repretesenting the position of each vertex, and a list
@@ -256,7 +334,7 @@ def compute_feature( id_1 , id_2, adj_1 , adj_2 , contact_regions, volume):
   return disp_1, disp_2
 
 
-def display_marching_cubes(vertices, triangles, color=(0, 0, 0), opacity=1.0):
+def display_marching_cubes(vertices, triangles, color=(0, 0, 0), opacity=1.0,  normals=None):
   """ Pushes meshes to renderer.
       remember to call mlab.show(), after everything 
       has being pushed.
@@ -268,8 +346,15 @@ def display_marching_cubes(vertices, triangles, color=(0, 0, 0), opacity=1.0):
     mesh = tvtk.PolyData(points=vertices, polys=triangles)
     surf = mlab.pipeline.surface(mesh, opacity=opacity)
     mlab.pipeline.surface(mlab.pipeline.extract_edges(surf), color=color)
-  
-  # mlab.show()
+
+  if normals != None:
+    for i, vertex in enumerate(vertices):
+      no = normals[ i ]  
+      mlab.quiver3d(vertex[0], vertex[1], vertex[2],
+                  no[0], no[1], no[2] 
+                  ,scalars=(0.0))
+    
+  mlab.show()
   return
 
 def display_pair( volume_id , id_1, id_2, matches):
@@ -349,23 +434,41 @@ def vertices_triangles_to_openctm( vertices, triangles ):
   tf.close()
   return s
 
+def export_mesh_as_threejs(vertices, triangles):
+
+  vertices = vertices.astype('float')
+
+  mesh = Trimesh(vertices = vertices, faces = triangles)
+  mesh.fix_normals()
+
+  #add column with zeros
+  s = mesh.faces.shape
+  faces = np.zeros(shape= (s[0], s[1]+1) )
+  faces[:,1:4] = mesh.faces
+
+  data = {
+    "metadata": { "formatVersion" : 3 },    
+    "vertices": list(mesh.vertices.reshape(-1)),
+    "normals": list(mesh.vertex_normals.reshape(-1)),
+    "faces": list(faces.reshape(-1))
+    }
+
+  
+  return data
+
 
 if __name__ == '__main__':
 
   from pyglomer.eyewire.volume import *
   
-  for x in range(2):
-    for y in range(2):
-      for z in range(2):
-        chunk = volume(74628, True).getSubTile(x,y,z)
-        vertices, triangles = marche_cubes([4738], chunk.stack)
 
-        if len(vertices):
-          print x,y,z,  np.amax(vertices) ,  np.amin(vertices)
-          vertices = vertices + np.array([x*256, y*256, z*256])
+  # vol = volume(74628, True).getTile()
+  # unique, counts = np.unique(vol.data , return_counts=True)
+  # segment_sizes = dict(zip(unique, counts))
 
-          vertices = vertices.astype(float) / 255.0
-          display_marching_cubes(vertices, triangles)
+  # vertices, triangles = marche_cubes([6717], vol.data)
+  
+  # mesh.vertices -= mesh.center_mass
 
 
-  mlab.show()
+  # export_mesh_as_json(mesh.vertices, mesh.faces, mesh.vertex_normals)

@@ -63,11 +63,8 @@ angular.module('cubeApp')
         srv.tiles[z] = { segmentation: {}, channel: {} , count:0};
       }
       srv.CHUNKS.forEach(function(chunk) {
-        chunkService.getImagesForVol(chunk, axis, 'channel', function(tile_idx, type, x, y ,image){
-            srv.tiles[tile_idx][type][[x,y]] = image;
-            srv.tiles[tile_idx].count++;
-        });
-        chunkService.getImagesForVol(chunk, axis, 'segmentation', function(tile_idx, type, x, y , image){
+        chunkService.getImagesForVol(chunk, axis,
+         function(tile_idx, type, x, y ,image) {
             srv.tiles[tile_idx][type][[x,y]] = image;
             srv.tiles[tile_idx].count++;
         });
@@ -204,10 +201,8 @@ angular.module('cubeApp')
 
       //A segment is composed of many meshes(one per chunk)
       meshService.meshes.children.forEach(function (segment) {
-        if (segment.children.length) {
-          colors.push(segment.children[0].material.uniforms.color.value);
-          segment_ids.push(segment.segment_id);
-        }
+        colors.push(segment.material.uniforms.color.value);
+        segment_ids.push(segment.segment_id);
       });
 
 

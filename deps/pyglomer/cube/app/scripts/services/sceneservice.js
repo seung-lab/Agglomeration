@@ -75,7 +75,6 @@ angular.module('cubeApp')
       );
       srv.pivot.add(srv.cube);
 
-
       var light = new THREE.DirectionalLight(0xffffff);
       light.position.copy(srv.camera.realCamera.position);
       srv.scene.add(light);

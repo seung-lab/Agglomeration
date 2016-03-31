@@ -4,6 +4,9 @@ import operator
 import numpy as np
 
 from pyglomer.util import mesh
+from pyglomer.eyewire import Tile
+import pickle
+import json
 
 class VoxelFeature(object):
 
@@ -15,14 +18,19 @@ class VoxelFeature(object):
   def reduce(self):
     pass
 
+  @staticmethod
+  def subtract_overlap(array, overlap):
+    end_without_overlap = array.shape - overlap
+    array_without_overlap = array[:end_without_overlap[0],
+                                  :end_without_overlap[1],
+                                  :end_without_overlap[2]]
+    return array_without_overlap
+
 class SegmentSize(VoxelFeature):
 
   @staticmethod
   def map(vol):
-    end_without_overlap = vol.machine_labels.shape - vol.overlap
-    data = vol.machine_labels[:end_without_overlap[0],
-                    :end_without_overlap[1],
-                    :end_without_overlap[2]]
+    data = SegmentSize.subtract_overlap(vol.machine_labels, vol.overlap)
 
     unique, counts = np.unique(data , return_counts=True)
     
@@ -88,8 +96,8 @@ class Mesh(VoxelFeature):
       if len(vertices) == 0:
         continue
 
-      vertices += np.asarray(vol.start).astype(np.uint16) * 2#translate mesh
-      meshes[(seg_id,)] = mesh.get_adjacent( vertices, triangles )
+      vertices += np.asarray(vol.start).astype(np.uint16) * 2 #translate mesh
+      meshes[seg_id] = mesh.get_adjacent( vertices, triangles )
     
     return meshes.iteritems()
 
@@ -97,4 +105,53 @@ class Mesh(VoxelFeature):
   def reduce(adj_1, adj_2):
 
     return mesh.merge_adjacents(adj_1,adj_2)
-    
+
+class PrepareForServe(VoxelFeature):
+
+  @staticmethod 
+  def get_meshes(vol):
+    meshes = dict()
+    for seg_id in np.unique( vol.machine_labels ):
+      if seg_id == 0:
+        continue
+
+      vertices, triangles = mesh.marche_cubes( seg_id , vol.machine_labels )
+
+      assert len(vertices) != 0
+
+      vertices += np.asarray(vol.start).astype(np.uint16) * 2 #translate mesh
+
+      #json requires all keys to be strings
+      meshes[str(seg_id)] = mesh.export_mesh_as_threejs(vertices, triangles)
+    return meshes
+
+
+  @staticmethod 
+  def get_base64(image_stack):
+
+    stack = []
+    for z in range(image_stack.shape[2]):
+      tile = {'data': Tile.array_to_base64( image_stack[:,:,z]) }
+      stack.append(tile)
+    return stack
+
+
+
+  @staticmethod
+  def map(vol):
+    channel = PrepareForServe.get_base64( 
+      PrepareForServe.subtract_overlap(vol.channel, vol.overlap).transpose((2,1,0))
+    )
+    machine_labels = PrepareForServe.get_base64( 
+      PrepareForServe.subtract_overlap(vol.machine_labels, vol.overlap).transpose((1,2,0))
+    )
+    meshes = PrepareForServe.get_meshes(vol)
+    obj = {
+        "channel": channel,
+        "segmentation": machine_labels,
+        "meshes": meshes
+    }
+    path = '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/chunks/{}-{}-{}.json'.format(*vol.chunk)
+    with open(path, 'wb') as handle:
+      json.dump(obj, handle)
+    return vol.chunk, 0

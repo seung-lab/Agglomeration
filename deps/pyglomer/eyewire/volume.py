@@ -195,7 +195,7 @@ class volume(object):
     
     return self
   
-  def plotTile(self,z, plane='xy'):
+  def plotTile(self,z=128, plane='xy'):
       
     if self.data == None:
       self.getTile()
@@ -333,12 +333,9 @@ class volume(object):
  
 if __name__ == '__main__':
   def main():
-    vol = volume(74627, True).getTile()
+    vol = volume(74628, True).getTile()
     data = vol.data
 
-    import h5py
-    f = h5py.File('./pyglomer/spark/tmp/ew_channel.h5','w')
-    f.create_dataset("main", data=data)
-    f.close()
+    vol.plotTile()
   main()
 

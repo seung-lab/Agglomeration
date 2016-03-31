@@ -15,7 +15,7 @@ from heapq import *
 class SparkServer(object):
   def __init__(self):
 
-    conf = SparkConf().setMaster("local[16]").setAppName("Agglomerator")
+    conf = SparkConf().setMaster("local[4]").setAppName("Agglomerator")
     conf.set("spark.executor.memory", "5g")
     conf.set("spark.executor.cores", 1)
     conf.set("spark.driver.memory","5g")
@@ -29,38 +29,25 @@ class SparkServer(object):
     self.dataset = Dataset(self.sc,  self.sqlContext)
     self.graph = Graph(self.sc , self.sqlContext, self.dataset.vertices, self.dataset.edges)
 
-    for batch in range(5):
+    for batch in range(1):
       print 'batch = ' + str(batch)
-      self.graph.info()
       self.graph.agglomerate()
- 
 
-  
-    # Vertex DataFrame
-    # v = self.sqlContext.createDataFrame([
-    #   ("a", "Alice", 34),
-    #   ("b", "Bob", 36),
-    #   ("c", "Charlie", 30),
-    #   ("d", "David", 29),
-    #   ("e", "Esther", 32),
-    #   ("f", "Fanny", 36),
-    #   ("g", "Gabby", 60)
-    # ], ["id", "name", "age"])
-    # # Edge DataFrame
-    # e = self.sqlContext.createDataFrame([
-    #   ("a", "b", "friend"),
-    #   ("a", "b", "friend"),
-    #   ("b", "c", "follow"),
-    #   ("c", "b", "follow"),
-    #   ("f", "c", "follow"),
-    #   ("e", "f", "follow"),
-    #   ("e", "d", "friend"),
-    #   ("d", "a", "friend"),
-    #   ("a", "e", "friend")
-    # ], ["src", "dst", "relationship"])
-    # # Create a GraphFrame
-    # g = GraphFrame(v, e)
-    # g.edges.show()
+  def get_edge(self):
+    return self.graph.get_edge_for_humans();
+
+  def get_human_decision(self, decision):
+
+    print 'decision submited' , decision
+    if decision['answer'] == 'y':
+      new_weight = 1.0
+    else:
+      new_weight = 0.0
+
+    self.graph.set_edge_weight(decision['edge'] , new_weight)
+    self.graph.agglomerate()
+
+
 if __name__ == '__main__':
   s = SparkServer()
 

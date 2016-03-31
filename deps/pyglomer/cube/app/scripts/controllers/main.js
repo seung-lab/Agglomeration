@@ -31,7 +31,7 @@ angular.module('cubeApp')
     taskService.getTask(function(task){
       sceneService.cube.add(tileService.planesHolder);
       sceneService.cube.add(meshService.meshes);
-      // displayNextEdge();
+      displayNextEdge();
     });
 
     function displayNextEdge () {
@@ -43,8 +43,11 @@ angular.module('cubeApp')
 
       taskService.getNextEdge(function(edge){
         meshService.displayEdge(edge, function(segment) {
-          //This function is called for every segment being loaded
-          animateDisplaySegment(segment);
+          if (segment) { //It could be null if the segment doesn't exists
+            //This function is called for every segment being loaded
+            animateDisplaySegment(segment);
+          }
+            
         });
       });
     }
@@ -83,7 +86,7 @@ angular.module('cubeApp')
 
       return {
         get opacity() {
-          return segment.children[0].material.uniforms.opacity.value;
+          return segment.material.uniforms.opacity.value;
         },
 
         set opacity(op) {
@@ -98,9 +101,7 @@ angular.module('cubeApp')
             // mesh.material.transparent = false; // TODO, why does this cause the segment to blip?
           } else {
             segment.visible = true;
-            segment.children.forEach(function (mesh) {
-              mesh.material.transparent = true;
-            });
+            segment.material.transparent = true;
           }
         }
       }

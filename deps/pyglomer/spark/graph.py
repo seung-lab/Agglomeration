@@ -35,7 +35,7 @@ class Graph(object):
     self.df_edges.registerTempTable("edges")
 
     #TODO change the dendograms for a heap
-    #or someother tree structure where it takes O(1) to
+    #or some other tree structure where it takes O(1) to
     #find successors and predeccessors
     self.edge_dendogram = nx.DiGraph()
     self.node_dendogram = nx.DiGraph()
@@ -62,9 +62,9 @@ class Graph(object):
   def create_edge(self, one, another, weight=None , children = []):
 
     assert one in self.node_dendogram and another in self.node_dendogram
-
     #src should be always smaller done the destination
     one , another = self.sort_tuple(one, another)
+
     self.nx_g.add_edge( one, another, weight= weight )
 
     #If it has childrens this edge has to be created based on them
@@ -102,7 +102,7 @@ class Graph(object):
     #sort edges from largest weight to smallest one, 
     #largest weight menas that it is more probable that two pieces should go together
     sorted_edges = self.nx_g.edges(data=True)
-    sorted_edges = filter(lambda edge: Edge(edge).weight > 0.75, sorted_edges)
+    sorted_edges = filter(lambda edge: Edge(edge).weight > 0.99, sorted_edges)
     sorted_edges = list(sorted(sorted_edges , key=lambda edge: Edge(edge).weight, reverse=True))
     for edge in sorted_edges:
       edge = Edge(edge)
@@ -125,6 +125,8 @@ class Graph(object):
       n_src = self.nx_g.neighbors(edge.src)
       n_dst = self.nx_g.neighbors(edge.dst)
       for neighbor in n_src + n_dst:
+        if neighbor == edge.src or neighbor == edge.dst:
+          continue
 
         children = []
         if neighbor in n_src:
@@ -143,8 +145,17 @@ class Graph(object):
       self.nx_g.remove_node(edge.src)
       self.nx_g.remove_node(edge.dst)
 
+      assert edge.src not in self.nx_g
+      assert edge.dst not in self.nx_g
+
+      if edge.src == 3191 and edge.dst == 16031:
+        import ipdb; ipdb.set_trace()
+
+      assert self.nx_g.has_edge(edge.src, edge.dst) == False
+
     self.merge_nodes(nodes_to_merge)
     self.update_edges()
+    self.info()
 
     #If an edge doesn't have a weight attribute I should update it
     # print self.nx_g.edges(data="weight")
@@ -216,7 +227,6 @@ class Graph(object):
   def update_edges(self):
 
     def get_successors_edges_which_not_need_updates(edge):
-
       edges = []
       for succesor in self.edge_dendogram.successors_iter( edge ):
         succesor = self.sort_tuple(*succesor)
@@ -234,6 +244,12 @@ class Graph(object):
     for edge in self.get_edges_to_update():
       edges_to_update[edge] = get_successors_edges_which_not_need_updates(edge)
       self.edge_dendogram.node[edge]['needs_update'] = False
+
+
+      if edge[0] == 3191 and edge[1] == 16031:
+        import ipdb; ipdb.set_trace()
+
+
       for existent_edge in edges_to_update[edge]:
         rows_to_get.append( (edge , existent_edge[0],existent_edge[1]) )
 
@@ -260,17 +276,23 @@ class Graph(object):
     new_edges = kv.reduceByKey(merge_edges).map(lambda row: (row[0][0], row[0][1], row[1][0])).toDF(['src','dst','weight'])
     new_edges.registerTempTable('new_edges')
 
-    def compute_new_weight(row): #TODO finish this
-      assert row.src < row.dst
-      return (row.src, row.dst, row.weight)
 
-    triplets = self.sqlContext.sql("""select ne.src as src, ne.dst as dst, ne.weight as weight,
+    triplets = self.sqlContext.sql("""select ne.src as ne_src, ne.dst as ne_dst, ne.weight as ne_weight,
                             u.* , v.*
                            FROM new_edges as ne
                            INNER JOIN nodes as u on ne.src = u.id 
                            INNER JOIN nodes as v on ne.dst = v.id""")
 
+    def compute_new_weight(row): #TODO finish this
+      assert row.ne_src < row.ne_dst
+      return (row.ne_src, row.ne_dst, row.ne_weight)
+
     triplets = triplets.map(compute_new_weight).toDF(['src','dst','weight'])
+    #update weight in networkx
+    #TODO don't get more that the weight
+    for edge in triplets.collect():
+      self.nx_g[edge.src][edge.dst]['weight'] = edge.weight
+
     self.df_edges = self.df_edges.unionAll(triplets)
 
     #remove old edges
@@ -280,6 +302,43 @@ class Graph(object):
     #Everytime you replace the dataframe , remember to re-register the table
 
     self.df_edges.registerTempTable('edges')
+
+
+  def get_edge_for_humans(self):
+    def get_atomic_supervoxels(node):
+      atomics = set()
+      successors = list(self.node_dendogram.successors_iter( node ))
+
+      if len(successors) != 0:
+        for succesor in successors:
+          atomics = atomics.union(get_atomic_supervoxels(succesor))
+      else:
+        atomics.add( node )
+      return atomics
+
+    sorted_edges = self.nx_g.edges(data=True)
+
+    def edge_priority(edge):
+      assert Edge(edge).weight != None
+      return  0.5 - Edge(edge).weight
+
+    sorted_edges = filter(lambda edge: Edge(edge).weight < 0.75, sorted_edges)
+    sorted_edges = list(sorted(sorted_edges , key=edge_priority))
+    edge = sorted_edges[0]
+
+    atomic_1 = list(get_atomic_supervoxels(edge[0]))
+    atomic_2 = list(get_atomic_supervoxels(edge[1]))
+    response = { "edge": [edge[0],edge[1]] , "atomic_1":atomic_1, "atomic_2":atomic_2 }
+
+    return response
+
+  def set_edge_weight(self, edge, weight):
+
+    if not self.nx_g.has_edge(*edge):
+      print 'we do not have this edge anymore'
+      return
+
+    self.nx_g[edge[0]][edge[1]]['weight'] = weight
 
 
   def plot(self):

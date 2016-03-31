@@ -8,7 +8,7 @@ from collections import namedtuple
 from pyspark.sql.types import *
 import os
 
-ImportTask = namedtuple('ImportTask', ['chunk_pos', 'start', 'end' , 'overlap' , 'files']) 
+ImportTask = namedtuple('ImportTask', ['chunk', 'start', 'end' , 'overlap' , 'files']) 
 SubVolume = namedtuple('SubVolume', ['chunk', 'channel', 'machine_labels','human_labels','affinities', 'start', 'end' , 'overlap']) 
 
 class Dataset(object):
@@ -19,11 +19,13 @@ class Dataset(object):
     """
     self.sc = sc
     self.sqlContext = sqlContext
+    self.subvolumes = None
     self.vertices =  None
-    self.chunks = None
-    self._get_subvolumes()
+    self.edges = None
+    self.chunks =None
 
     if not os.path.isdir(self.files('vertices')) or not os.path.isdir(self.files('edges')):
+      self._get_subvolumes()
       self.compute_voxel_features()
       self.vertices.write.parquet(self.files('vertices'))
       self.edges.write.parquet(self.files('edges'))
@@ -31,6 +33,14 @@ class Dataset(object):
       # Load the vertices and edges back.
       self.vertices =  self.sqlContext.read.parquet(self.files('vertices'))
       self.edges =  self.sqlContext.read.parquet(self.files('edges'))
+
+
+    if not os.path.exists(self.files("chunks")+"/0-0-0.json"):
+      self._get_subvolumes() 
+      pfs = features.PrepareForServe()
+      self.subvolumes.map(pfs.map).collect()
+   
+    # self.chunks.cache()
 
 
   def get_shape(self):
@@ -104,7 +114,7 @@ class Dataset(object):
 
       data[h5file] = chunk_data
 
-    sv = SubVolume(it.chunk_pos,
+    sv = SubVolume(it.chunk,
                    data['channel'],
                    data['machine_labels'],
                    data['human_labels'],
@@ -115,13 +125,14 @@ class Dataset(object):
     return sv
 
   def _get_subvolumes(self):
+
+    if self.subvolumes != None:
+      return self.subvolumes
     
     volumes = self.import_hdf5()
     volumes = self.sc.parallelize(volumes)
     self.subvolumes = volumes.map(self._get_subvolume)
-    self.chunks = self.subvolumes.map(lambda subvolume: (subvolume.chunk, (subvolume.channel, subvolume.machine_labels))).cache()
-
-
+     
   def compute_voxel_features(self):
     
     def to_row( data ):
@@ -179,8 +190,9 @@ class Dataset(object):
         'machine_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/small_ml_dr5.h5',
         'human_labels': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/small_ml_dr5.h5',
         'affinities': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/small_aff_dr5.h5',
-        'vertices': './pyglomer/spark/tmp/vertices',
-        'edges': './pyglomer/spark/tmp/edges'
+        'chunks': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/chunks',
+        'vertices': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/vertices',
+        'edges': '/usr/people/it2/code/Agglomerator/deps/pyglomer/spark/tmp/edges'
       }
   
     return files[file]

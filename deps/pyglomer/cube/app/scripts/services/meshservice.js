@@ -18,38 +18,8 @@ angular.module('cubeApp')
       transparent: false,
       opacity: 1.0,
       meshes: new THREE.Object3D(),
-      pixelToSegId: new Int16Array(globals.CUBE_SIZE.x * globals.CUBE_SIZE.y * globals.CUBE_SIZE.z)
+      chunks: {},
     };
-  
-
-    var marchingCubes = Module.cwrap(
-     'marching_cubes', 'number', ['number', 'number']
-    );
-
-    function setupAsm() {
-      var whatIsThis = Module._malloc(srv.pixelToSegId.byteLength);
-      var dataHeap = new Uint8Array(Module.HEAPU8.buffer, whatIsThis, srv.pixelToSegId.byteLength);
-      dataHeap.set(new Uint8Array(srv.pixelToSegId.buffer));
-      srv.pixelToSegIdPtr = dataHeap.byteOffset;
-    }
-    setupAsm();
-    
-    function generateGeoForSegmentASM(segId) {
-      var meshPtr = marchingCubes(segId, srv.pixelToSegIdPtr);
-      var arrSize = new Float32Array(Module.HEAPU8.buffer, meshPtr, 1)[0];
-   
-      var positions = new Float32Array(Module.HEAPU8.buffer, meshPtr + 4, arrSize);
-      var normals = new Float32Array(Module.HEAPU8.buffer, meshPtr + 4 + arrSize * 4, arrSize);
-   
-      Module._free(meshPtr);
-   
-      var segGeo = new THREE.BufferGeometry();
-      segGeo.addAttribute('position', new THREE.BufferAttribute(positions, 3));
-      segGeo.addAttribute('normal', new THREE.BufferAttribute(normals, 3));
-      segGeo.normalizeNormals();
-   
-      return segGeo;
-    }
      
 
     // sets the opacity for all segments
@@ -76,7 +46,17 @@ angular.module('cubeApp')
     };
 
     function init(){
-      srv.meshes.position.set(-0.5, -0.5, -0.5);
+
+      // I have no clue why I have to apply this mirroring
+      // And rotation to have channel images and meshes orientation Matching
+      var mS = (new THREE.Matrix4()).identity();
+      mS.elements[0] = -1;
+      mS.elements[5] = -1;
+      mS.elements[10] = -1;
+      srv.meshes.applyMatrix(mS);
+      srv.meshes.rotateX(Math.PI)
+      srv.meshes.rotateY(Math.PI/2)
+
     }
     init();
 
@@ -206,15 +186,28 @@ angular.module('cubeApp')
     srv.displayEdge = function(edge, callback) {
       
       //TODO modify this so it supports many segment_ids for each edge
-      srv.displayMesh ( edge[0][0], 'red' , callback);
-      srv.displayMesh ( edge[1][0], 'blue' , callback);
+      edge.atomic_1.forEach(function(seg_id) {
+        srv.displayMesh ( seg_id, 'red' , callback);
+      });
+
+       edge.atomic_2.forEach(function(seg_id) {
+        srv.displayMesh ( seg_id , 'blue' , callback);
+      });
+
     };
 
     srv.displayMesh = function(segment_id, color ,callback) {
+      if (segment_id == 0) {
+        return
+      }
 
       var color =  new THREE.Color(color);
       if (!(segment_id in srv.cache)) {
-        get_mesh2(segment_id, color,  function(mesh) {
+        get_mesh(segment_id, color,  function(mesh) {
+          if (mesh == null) {
+            return null;
+          }
+
           srv.cache[segment_id] = mesh;
           srv.meshes.add(mesh);
           callback(mesh);
@@ -235,23 +228,39 @@ angular.module('cubeApp')
     };
 
     srv.setSegmentOpacity = function(segment , opacity) {
-      segment.children.forEach(function (mesh) {
-        mesh.material.uniforms.opacity.value = opacity;
-      });
+      segment.material.uniforms.opacity.value = opacity;
     };
 
-    function get_mesh2(segment_id,  color, callback ) {
+    function get_mesh(segment_id,  color, callback ) {
       // Compute the mesh in the browser using marching cubes
-      
       var count = 0;
-      var segmentMesh = new THREE.Object3D();
-      segmentMesh.segment_id = segment_id;
+      var segmentGeometry = new THREE.Geometry();
+      segmentGeometry.segment_id = segment_id;
       var material = srv.get_material( color );
       material.issegment = true; // hacked three.js so that we can render transparent segments before and after the plane
-      var geometry = generateGeoForSegmentASM(segment_id);
- 
-      var mesh = new THREE.Mesh( geometry , material );
-      segmentMesh.add(mesh);  
+
+      var chunks_with_meshes = 0;
+      for (var key in srv.chunks) {
+        
+        if (segment_id in srv.chunks[key]) {
+          chunks_with_meshes++;
+          // instantiate a loader
+          var loader = new THREE.JSONLoader();
+          var geometry = loader.parse(srv.chunks[key][segment_id]).geometry;
+          segmentGeometry.merge(geometry);
+
+        }
+      }
+      if (chunks_with_meshes == 0){
+        console.error("there is no mesh for segment id: "+ segment_id.toString() )
+        return null;
+      }
+
+      segmentGeometry.scale(0.5 / 64.0, 0.5 / 384.0, 0.5 / 384.0);
+    
+      var segmentMesh = new THREE.Mesh( segmentGeometry , material );
+      segmentMesh.segment_id = segment_id;
+      segmentMesh.position.set(-0.5,-0.5,-0.5);
       callback(segmentMesh);
     };
 
