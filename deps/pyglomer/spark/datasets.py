@@ -40,8 +40,6 @@ class Dataset(object):
       pfs = features.PrepareForServe()
       self.subvolumes.map(pfs.map).collect()
    
-    # self.chunks.cache()
-
 
   def get_shape(self):
 
@@ -142,16 +140,17 @@ class Dataset(object):
     adjcency = self.subvolumes.flatMap(cr.map).reduceByKey(cr.reduce)
     edges = []
     for edge, voxels in adjcency.toLocalIterator():
-        mean = float( np.mean([pair[1] for pair in voxels]) )
+        affinities_sum = float( np.sum([pair[1] for pair in voxels]) )
+        contact_region_size = len(voxels)
 
         #The src should always be an smaller id that the dst
         if edge[0] > edge[1]:
           edge[0] , edge[1] = edge[1] , edge[0]
-
-        edges.append( edge + (mean,) )
+  
+        edges.append( edge + (affinities_sum, contact_region_size) )
 
         
-    self.edges = self.sqlContext.createDataFrame(edges, ['src','dst','weight'])
+    self.edges = self.sqlContext.createDataFrame(edges, ['src','dst','affinities_sum','contact_region_size'])
     ss = features.SegmentSize()
     sizes = self.subvolumes.flatMap(ss.map).reduceByKey(ss.reduce).map(to_row).toDF(['id','size'])
     self.vertices = sizes

@@ -17,7 +17,7 @@ decisions_since_last_agglomeration = 0
 class SparkServer(object):
   def __init__(self):
 
-    conf = SparkConf().setMaster("local[4]").setAppName("Agglomerator")
+    conf = SparkConf().setMaster("local[16]").setAppName("Agglomerator")
     conf.set("spark.executor.memory", "5g")
     conf.set("spark.executor.cores", 1)
     conf.set("spark.driver.memory","5g")
@@ -34,7 +34,7 @@ class SparkServer(object):
     self.edges = []
     self.edge_index = 0
 
-    for batch in range(8):
+    for batch in range(20):
       print 'batch = ' + str(batch)
       self.graph.agglomerate()
 

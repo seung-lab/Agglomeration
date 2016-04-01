@@ -1,14 +1,8 @@
-import matplotlib.pyplot as plt
 import networkx as nx
-from heapq import *
-from collections import namedtuple
-from graphframes import GraphFrame
 from pyspark.sql.types import *
 from pyspark.sql import Row
 
-
-
-class Edge(object):
+class Nx_Edge(object):
 
   def __init__(self, edge_tuple ):
     self.src = edge_tuple[0]
@@ -16,9 +10,51 @@ class Edge(object):
     data = edge_tuple[2]
     self.weight = data['weight']
 
-  def to_row(self):
-    # return Row(src=self.src, dst=self.dst, weight=self.weight)
-    return Row(src=list(self.src), dst=list(self.dst))
+class Df_Edge(object):
+  """This class represented one of the edges of df_edges,
+  and NOT any of the edges of networkx"""
+
+  def __init__(self, features):
+    self.features = ["affinities_sum",
+                     "contact_region_size"]
+    self.affinities_sum = features[0]
+    self.contact_region_size = features[1]
+
+  @staticmethod
+  def merge_edges(edge_1, edge_2):
+    
+    edge_1 = Df_Edge(edge_1)
+    edge_2 = Df_Edge(edge_2)
+
+    affinities_sum = edge_1.affinities_sum + edge_2.affinities_sum
+    contact_region_size = edge_1.contact_region_size + edge_2.contact_region_size
+
+    return (affinities_sum, contact_region_size)
+
+  @staticmethod
+  def map_key_value( kv ):
+    k , features = kv
+    return (k[0], k[1], features[0], features[1] )
+
+class Node(object):
+
+  @staticmethod
+  def merge_nodes(r):
+    new_size = r.v1_size + r.v2_size
+    return Row(id=r.new_id, size=new_size)
+
+class Triplets(object):
+
+  @classmethod
+  def compute_new_weight(cls, r):
+
+    cls.u = Node()
+    cls.v = Node()
+
+    assert r.src < r.dst
+
+    weight = r.affinities_sum/ float(r.contact_region_size)
+    return (r.src, r.dst, weight)
 
 class Graph(object):
 
@@ -49,7 +85,7 @@ class Graph(object):
       vertex_id = self.next_node_id
       self.next_node_id += 1
     else:
-      self.next_node_id = max(self.next_node_id , vertex_id)
+     self.next_node_id = max(self.next_node_id , vertex_id)
     
     #If it has childrens this node has to be created based on them
     needs_update = len(children) > 0 
@@ -68,7 +104,7 @@ class Graph(object):
     self.nx_g.add_edge( one, another, weight= weight )
 
     #If it has childrens this edge has to be created based on them
-    needs_update = len(children) > 0
+    needs_update = len(children) > 0 or weight == None  # is the second condition enogh?
     self.edge_dendogram.add_node( (one, another) , needs_update=needs_update)
 
     for child in children:
@@ -76,17 +112,16 @@ class Graph(object):
       child = self.sort_tuple(*child)
       self.edge_dendogram.add_edge( (one, another) , child)
 
-
   def populate_nx_from_df(self):
     nodes_ids = self.sqlContext.sql("select id from nodes").collect()
     map(lambda row: self.create_node(row.id) , nodes_ids)
 
-    edges =  self.sqlContext.sql("select src, dst, weight from edges").collect()
+    edges =  self.sqlContext.sql("select src, dst from edges").collect()
     def add_edge(edge):
       assert edge.src < edge.dst, 'edge src has to be smaller than edge.dst'
-      self.create_edge(edge.src, edge.dst, edge.weight)
-
+      self.create_edge(edge.src, edge.dst)
     map(add_edge, edges)
+    self.update_edges()    
 
   @staticmethod
   def sort_tuple( elem_1 , elem_2 ):
@@ -95,112 +130,90 @@ class Graph(object):
     else:
       return elem_2, elem_1
 
-  @profile
+  def get_edges_to_agglomerate(self, min_threshold = 0.7):
+    #sort edges from largest weight to smallest one, 
+    #largest weight means that it is more probable that two pieces should go together
+    sorted_edges = self.nx_g.edges(data=True)
+    sorted_edges = filter(lambda edge: Nx_Edge(edge).weight > min_threshold, sorted_edges)
+    sorted_edges = list(sorted(sorted_edges , key=lambda edge: Nx_Edge(edge).weight, reverse=True))
+    return sorted_edges
+
+  def update_neighboor_edges(self, new_node, u, v):
+    #Recompute this edges because at least one of the nodes
+    #has changed
+    n_u = self.nx_g.neighbors(u)
+    n_v = self.nx_g.neighbors(v)
+    for neighbor in n_u + n_v:
+      #Don't create a new between the nodes we are merging
+      if neighbor == u or neighbor == v:
+        continue
+
+      children = []
+      if neighbor in n_u:
+        children.append( self.sort_tuple(neighbor, u) )
+
+      if neighbor in n_v:
+        children.append( self.sort_tuple(neighbor, v) )
+
+      assert len(children) > 0
+      self.create_edge( new_node, neighbor, children=children)
+
   def agglomerate(self):
 
-    nodes_to_merge = list()
-    #sort edges from largest weight to smallest one, 
-    #largest weight menas that it is more probable that two pieces should go together
-    sorted_edges = self.nx_g.edges(data=True)
-    sorted_edges = filter(lambda edge: Edge(edge).weight > 0.7, sorted_edges)
-    sorted_edges = list(sorted(sorted_edges , key=lambda edge: Edge(edge).weight, reverse=True))
-    for edge in sorted_edges:
-      edge = Edge(edge)
+    for edge in self.get_edges_to_agglomerate():
+      edge = Nx_Edge(edge)
 
       #Check if the edge is still valid.
-      #If one of the nodes has been removed, it means it has been
-      #used for some other merge operation
+      #If one of the nodes has been removed, if it has it means it has been
+      #used for some other merge operation before
       if not self.nx_g.has_edge(edge.src, edge.dst):
         continue
       
       #create new vertex
       new_node = self.create_node(children=[edge.src, edge.dst])
-
-      # if new_node == 21593 or edge.src == 21593 or edge.dst == 21593:
-      #   import ipdb; ipdb.set_trace()
-
-      nodes_to_merge.append((new_node , edge.src, edge.dst))
-      #Recompute this edges because at least one of the nodes
-      #has changed
-      n_src = self.nx_g.neighbors(edge.src)
-      n_dst = self.nx_g.neighbors(edge.dst)
-      for neighbor in n_src + n_dst:
-        if neighbor == edge.src or neighbor == edge.dst:
-          continue
-
-        children = []
-        if neighbor in n_src:
-          children.append( self.sort_tuple(neighbor, edge.src) )
-
-        neighbor_dst_edge = self.nx_g.get_edge_data(neighbor, edge.dst)
-        if neighbor in n_dst:
-          children.append( (neighbor, edge.dst) )
-
-        assert len(children) > 0
-        self.create_edge( new_node, neighbor, children=children)
-
-
+      self.update_neighboor_edges(new_node, edge.src, edge.dst)
       #remove both nodes which got merge, this will remove all the old edges around them
       #making merges be independent
       self.nx_g.remove_node(edge.src)
       self.nx_g.remove_node(edge.dst)
 
-      assert edge.src not in self.nx_g
-      assert edge.dst not in self.nx_g
-      assert self.nx_g.has_edge(edge.src, edge.dst) == False
-
-    self.merge_nodes(nodes_to_merge)
+    self.update_nodes()
     self.update_edges()
     self.info()
-
-    #If an edge doesn't have a weight attribute I should update it
-    # print self.nx_g.edges(data="weight")
   
-  @profile
-  def merge_nodes(self, nodes_to_merge):
-    #TODO modify this so it doesn't require an argument, and it only uses the dendogram
-    #maybe we can keep a list of nodes add which needs_update
-
+  def update_nodes(self):
     #TODO we are leaving the edge that connect this two nodes in df_edges
     #maybe we need the edge features when merge the two nodes.
-    if len(nodes_to_merge) == 0:
+    nodes_to_update = self.get_nodes_to_update() 
+    if len(nodes_to_update) == 0:
       print 'no nodes to merge'
       return
 
+    rows_to_get = []
+    for new_node , successor_nodes in nodes_to_update.iteritems():
+      
+      #if this start failing we can take same approach as in update edges, where we merge many 
+      #edges at the same time
+      assert len(successor_nodes) == 2 
+      rows_to_get.append( (new_node, successor_nodes[0], successor_nodes[1]) )
+      self.node_dendogram.node[new_node]['needs_update'] = False
+    
     schema = StructType([StructField('new_id',LongType()), StructField('u',LongType()),StructField('v',LongType())])
-    to_merge = self.sqlContext.createDataFrame(nodes_to_merge,schema)
-    to_merge.registerTempTable('nodes_to_merge')
+    to_merge = self.sqlContext.createDataFrame(rows_to_get,schema)
+    to_merge.registerTempTable('rows_to_get')
     nodes_pair = self.sqlContext.sql("""SELECT vm.new_id, v1.id as v1_id, v1.size as v1_size,
                                         v2.id as v2_id, v2.size as v2_size
-                                        FROM nodes_to_merge as vm
+                                        FROM rows_to_get as vm
                                         INNER JOIN nodes as v1 on vm.u = v1.id
                                         INNER JOIN nodes as v2 on vm.v = v2.id
                                         """)
 
-    def merge_nodes(r):
-      new_size = r.v1_size + r.v2_size
-      return Row(id=r.new_id, size=new_size)
-
-    new_nodes = nodes_pair.map(merge_nodes).toDF()
+    new_nodes = nodes_pair.map(Node.merge_nodes).toDF()
     self.df_nodes = self.df_nodes.unionAll(new_nodes)
-
-    #remove old nodes
-    nodes_to_remove = set()
-    def add_vertex_ids(node):
-      nodes_to_remove.add(node[0])
-      nodes_to_remove.add(node[1])
-    map(add_vertex_ids, nodes_to_merge)
-
-    # nodes_to_remove = self.sc.broadcast(nodes_to_remove)
-    # self.df_nodes = self.df_nodes.rdd.filter(lambda vertex: vertex.id not in nodes_to_remove.value).toDF(['id','size'])
+    self.remove_old_nodes(nodes_to_update)
 
     #Everytime you replace the dataframe , remember to re-register the table
     self.df_nodes.registerTempTable('nodes')
-
-    #set dendogram nodes as don't needs update
-    for vetex_to_merge in nodes_to_merge:
-      new_vertex = vetex_to_merge[0]
-      self.node_dendogram.node[new_vertex]['needs_update'] = False
 
   def get_edges_to_update(self):
     return self.get_needs_update_from_dendogram(self.edge_dendogram)
@@ -211,36 +224,58 @@ class Graph(object):
   def get_needs_update_from_dendogram(self, dendogram):
     #TODO maybe convert this to an iterator
 
-    items_to_update = []
+    items_to_update = {}
     for item in nx.nodes_iter(dendogram):
       has_no_predeccessors = len(dendogram.predecessors(item)) == 0
       needs_update = dendogram.node[item]['needs_update']
       if not has_no_predeccessors or not needs_update:
         continue
-      items_to_update.append(item)
 
+      has_succesors = len(dendogram.successors(item)) != 0
+      if has_succesors:
+        items_to_update[item] = self.get_successors_which_not_need_updates(item,dendogram)
+      else:
+        #update the edge based on itself
+        items_to_update[item] = [item]
     return items_to_update
- 
-  @profile
+
+  @staticmethod
+  def get_successors_which_not_need_updates(node, dendogram):
+    succesors_list = []
+    for succesor in dendogram.successors_iter(node):
+      if type(succesor) == tuple:
+        succesor = Graph.sort_tuple(*succesor)
+
+      if dendogram.node[succesor]['needs_update']:
+        succesors_list.extend(
+          Graph.get_successors_which_not_need_updates(succesor, dendogram)
+        )
+      else:
+        succesors_list.append( succesor )
+    return succesors_list
+
+  def remove_old_edges(self, edges_to_update):
+    edges_to_remove = [item for sublist in edges_to_update.values() for item in sublist] 
+    edges_to_remove = self.sc.broadcast(set(edges_to_remove))
+    self.df_edges = self.df_edges.rdd.filter(
+      lambda edge: (edge.src , edge.dst) not in edges_to_remove.value)
+    self.df_edges = self.df_edges.toDF(['src','dst','weight'])
+
+  def remove_old_nodes(self, nodes_to_update):
+    nodes_to_remove = [item for sublist in nodes_to_update.values() for item in sublist] 
+    nodes_to_remove = self.sc.broadcast(set(nodes_to_remove))
+    self.df_nodes = self.df_nodes.rdd.filter(
+      lambda vertex: vertex.id not in nodes_to_remove.value)
+    self.df_nodes = self.df_nodes.toDF(['id','size'])
+
   def update_edges(self):
 
-    def get_successors_edges_which_not_need_updates(edge):
-      edges = []
-      for succesor in self.edge_dendogram.successors_iter( edge ):
-        succesor = self.sort_tuple(*succesor)
-
-        if self.edge_dendogram.node[succesor]['needs_update']:
-          edges = edges + get_successors_edges_which_not_need_updates(succesor)
-        else:
-          edges.append( succesor )
-
-      return edges
-
-
-    edges_to_update = {}
+    edges_to_update = self.get_edges_to_update()
+    if len(edges_to_update)  == 0:
+      return
+    
     rows_to_get = []
-    for edge in self.get_edges_to_update():
-      edges_to_update[edge] = get_successors_edges_which_not_need_updates(edge)
+    for edge in edges_to_update:
       self.edge_dendogram.node[edge]['needs_update'] = False
 
       for existent_edge in edges_to_update[edge]:
@@ -249,53 +284,37 @@ class Graph(object):
     schema = StructType([StructField('new_edge',ArrayType(LongType())),
                          StructField('src',LongType()),
                          StructField('dst',LongType())])
-     
+       
     self.sqlContext.createDataFrame(rows_to_get,schema).registerTempTable('edges_to_update')
-    rows = self.sqlContext.sql("""select eu.new_edge,  e.weight
+    rows = self.sqlContext.sql("""select eu.new_edge,  e.affinities_sum, e.contact_region_size
                            from edges_to_update as eu
                            LEFT JOIN edges as e on eu.src = e.src AND eu.dst = e.dst""")
 
-    if len(edges_to_update)  == 0:
-      return
+    #I have to convert to tuples here, otherwise it is unhasable and cannot get reduce
+    kv = rows.rdd.map(lambda row: ( tuple(row.new_edge) , (row.affinities_sum, row.contact_region_size)) ) 
 
-    kv = rows.rdd.map(lambda row: ( tuple(row.new_edge) , (row.weight,)) ) #I have to convert to tuples here, otherwise it is unhasable and cannot get reduce
-    def merge_edges(edge_1, edge_2):
-      weight_1 = edge_1[0]
-      weight_2 = edge_2[0]
-      new_weight = (weight_1 + weight_2) / 2
-      return (new_weight,)
 
     #Add new edges
-    new_edges = kv.reduceByKey(merge_edges).map(lambda row: (row[0][0], row[0][1], row[1][0])).toDF(['src','dst','weight'])
+    new_edges = kv.reduceByKey(Df_Edge.merge_edges).map(Df_Edge.map_key_value).toDF(['src','dst','affinities_sum', 'contact_region_size'])
     new_edges.registerTempTable('new_edges')
+    self.df_edges = self.df_edges.unionAll(new_edges)
 
 
-    triplets = self.sqlContext.sql("""select ne.src as ne_src, ne.dst as ne_dst, ne.weight as ne_weight,
+    triplets = self.sqlContext.sql("""select ne.*,
                             u.* , v.*
                            FROM new_edges as ne
                            INNER JOIN nodes as u on ne.src = u.id 
                            INNER JOIN nodes as v on ne.dst = v.id""")
 
-    def compute_new_weight(row): #TODO finish this
-      assert row.ne_src < row.ne_dst
-      return (row.ne_src, row.ne_dst, row.ne_weight)
 
-    triplets = triplets.map(compute_new_weight).toDF(['src','dst','weight'])
-    #update weight in networkx
-    #TODO don't get more that the weight
+    triplets = triplets.map(Triplets.compute_new_weight).toDF(['src','dst','weight'])
     for edge in triplets.collect():
       self.nx_g[edge.src][edge.dst]['weight'] = edge.weight
 
-    self.df_edges = self.df_edges.unionAll(triplets)
 
-    #remove old edges
-    # edges_to_remove = self.sc.broadcast(set(edges_to_remove))
-    # self.df_edges = self.df_edges.rdd.filter(lambda edge: (edge.src , edge.dst) not in edges_to_remove.value).toDF(['src','dst','weight'])
 
     #Everytime you replace the dataframe , remember to re-register the table
-
     self.df_edges.registerTempTable('edges')
-
 
   def get_edges_for_humans(self):
     def get_atomic_supervoxels(node):
@@ -312,10 +331,10 @@ class Graph(object):
     sorted_edges = self.nx_g.edges(data=True)
 
     def edge_priority(edge):
-      assert Edge(edge).weight != None
-      return  0.5 - Edge(edge).weight
+      assert Nx_Edge(edge).weight != None
+      return  0.5 - Nx_Edge(edge).weight
 
-    sorted_edges = filter(lambda edge: Edge(edge).weight < 0.75, sorted_edges)
+    sorted_edges = filter(lambda edge: Nx_Edge(edge).weight < 0.75, sorted_edges)
     sorted_edges = list(sorted(sorted_edges , key=edge_priority))
 
     responses = []
@@ -338,8 +357,8 @@ class Graph(object):
 
     self.nx_g[edge[0]][edge[1]]['weight'] = weight
 
-
   def plot(self):
+    import matplotlib.pyplot as plt
     # https://networkx.github.io/documentation/latest/examples/drawing/labels_and_colors.html
     pos = nx.spring_layout(self.g)
     nx.draw_networkx_nodes(self.g, pos, node_color='b', node_size=500, alpha=0.8)
