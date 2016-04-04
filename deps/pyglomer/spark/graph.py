@@ -80,6 +80,9 @@ class Graph(object):
     self.nx_g = nx.Graph()
     self.populate_nx_from_df()
 
+    for edge in self.nx_g.edges(data=True):
+      assert Nx_Edge(edge).weight != None
+
   def create_node(self, vertex_id=None, children = []):
     if vertex_id == None:
       vertex_id = self.next_node_id
@@ -116,12 +119,15 @@ class Graph(object):
     nodes_ids = self.sqlContext.sql("select id from nodes").collect()
     map(lambda row: self.create_node(row.id) , nodes_ids)
 
-    edges =  self.sqlContext.sql("select src, dst from edges").collect()
+    edges =  self.sqlContext.sql("select src, dst from edges")
     def add_edge(edge):
       assert edge.src < edge.dst, 'edge src has to be smaller than edge.dst'
       self.create_edge(edge.src, edge.dst)
-    map(add_edge, edges)
-    self.update_edges()    
+    map(add_edge, edges.collect())
+
+    self.df_edges.registerTempTable('new_edges')
+    self.update_weights()    
+    self.df_edges.registerTempTable('edges')
 
   @staticmethod
   def sort_tuple( elem_1 , elem_2 ):
@@ -130,7 +136,7 @@ class Graph(object):
     else:
       return elem_2, elem_1
 
-  def get_edges_to_agglomerate(self, min_threshold = 0.7):
+  def get_edges_to_agglomerate(self, min_threshold = 0.0001):
     #sort edges from largest weight to smallest one, 
     #largest weight means that it is more probable that two pieces should go together
     sorted_edges = self.nx_g.edges(data=True)
@@ -211,9 +217,20 @@ class Graph(object):
     new_nodes = nodes_pair.map(Node.merge_nodes).toDF()
     self.df_nodes = self.df_nodes.unionAll(new_nodes)
     self.remove_old_nodes(nodes_to_update)
-
     #Everytime you replace the dataframe , remember to re-register the table
     self.df_nodes.registerTempTable('nodes')
+
+  def update_weights(self):
+    triplets = self.sqlContext.sql("""select ne.*,
+                            u.* , v.*
+                           FROM new_edges as ne
+                           INNER JOIN nodes as u on ne.src = u.id 
+                           INNER JOIN nodes as v on ne.dst = v.id""")
+
+    triplets = triplets.map(Triplets.compute_new_weight).toDF(['src','dst','weight'])
+    for edge in triplets.collect():
+      self.nx_g[edge.src][edge.dst]['weight'] = edge.weight
+
 
   def get_edges_to_update(self):
     return self.get_needs_update_from_dendogram(self.edge_dendogram)
@@ -255,11 +272,13 @@ class Graph(object):
     return succesors_list
 
   def remove_old_edges(self, edges_to_update):
-    edges_to_remove = [item for sublist in edges_to_update.values() for item in sublist] 
+    edges_to_remove = [item for sublist in edges_to_update.values() for item in sublist]
+    print 'planning to remove {} of {} edges'.format( len(edges_to_remove) ,  self.df_edges.count() )
     edges_to_remove = self.sc.broadcast(set(edges_to_remove))
     self.df_edges = self.df_edges.rdd.filter(
       lambda edge: (edge.src , edge.dst) not in edges_to_remove.value)
-    self.df_edges = self.df_edges.toDF(['src','dst','weight'])
+    print 'new size is {}'.format(self.df_edges.count())
+    self.df_edges = self.df_edges.toDF(['src','dst','affinities_sum', 'contact_region_size'])
 
   def remove_old_nodes(self, nodes_to_update):
     nodes_to_remove = [item for sublist in nodes_to_update.values() for item in sublist] 
@@ -297,23 +316,11 @@ class Graph(object):
     #Add new edges
     new_edges = kv.reduceByKey(Df_Edge.merge_edges).map(Df_Edge.map_key_value).toDF(['src','dst','affinities_sum', 'contact_region_size'])
     new_edges.registerTempTable('new_edges')
-    self.df_edges = self.df_edges.unionAll(new_edges)
+    self.update_weights()
 
-
-    triplets = self.sqlContext.sql("""select ne.*,
-                            u.* , v.*
-                           FROM new_edges as ne
-                           INNER JOIN nodes as u on ne.src = u.id 
-                           INNER JOIN nodes as v on ne.dst = v.id""")
-
-
-    triplets = triplets.map(Triplets.compute_new_weight).toDF(['src','dst','weight'])
-    for edge in triplets.collect():
-      self.nx_g[edge.src][edge.dst]['weight'] = edge.weight
-
-
-
+    self.remove_old_edges(edges_to_update)
     #Everytime you replace the dataframe , remember to re-register the table
+    self.df_edges = self.df_edges.unionAll(new_edges)
     self.df_edges.registerTempTable('edges')
 
   def get_edges_for_humans(self):
@@ -378,6 +385,9 @@ class Graph(object):
 
   def info(self):
     print nx.info(self.nx_g)
+    print 'df_nodes count:', self.df_nodes.count() 
+    print 'df_edges count:', self.df_edges.count() 
+
 
   def stats(self):
     T=nx.minimum_spanning_tree(self.g)
