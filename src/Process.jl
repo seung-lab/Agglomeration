@@ -2,7 +2,7 @@ module Process
 using Datasets, Agglomerators, LabelData, Features, MST
 
 
-function forward(cmd_args)
+function forward(cmd_args::Dict)
 
   dataset = Datasets.add_dataset(:cmd,
    cmd_args["aff"], 
@@ -25,6 +25,21 @@ function build_agglomerator(agg_name)
   if agg_name == "LinearAgglomerator"
     return LinearAgglomerator( Function[x->max_affinity(x[3])] , [1.0] )
   end
+end
+
+default_agg=LinearAgglomerator(
+Function[
+x->mean_affinity(x[3]),
+],
+[1.0])
+
+function forward{T,S}(affinities::Array{T,4}, watershed::Array{S,3}; agglomerator=default_agg, threshold=0.1)
+	dataset = Datasets.dataset(gensym(), affinities, watershed)
+	rg= LabelData.atomic_region_graph(dataset.edges)
+	apply_agglomeration!(rg, agglomerator, threshold)
+	mst = MST.build_mst(rg)
+
+	return mst
 end
 
 end #module

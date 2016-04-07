@@ -148,6 +148,10 @@ typealias RegionGraph{name} DefaultDict{Region{name},Dict{Region{name},Edge{name
 #and the value of the second dictionary is an AtomicEdge between this two labels.
 # An atomic edge contains all the voxels connecting two atomic regions
 
+function atomic_region_graph{name}(edges::Array{Edge{name}})
+	atomic_region_graph(edges, name)
+end
+
 function atomic_region_graph(edges , name::Symbol)
   rg = DefaultDict(Region{name},
                  Dict{Region{name},Edge{name}},

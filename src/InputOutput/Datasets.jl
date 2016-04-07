@@ -23,6 +23,20 @@ immutable dataset{name}
   
 end
 
+function dataset(s,affinities, machine_labels)
+	sz = size(affinities)[1:3]
+	@assert size(machine_labels) == sz
+	machine_labels = convert(Array{LabelData.Label}, machine_labels)
+	affinities = convert(Array{Float32}, affinities)
+	n_machine_labels = maximum(machine_labels)
+	regions, edges = build_labels(machine_labels, n_machine_labels, s)
+	d = dataset{s}(affinities, sz, machine_labels, n_machine_labels,
+		regions, edges,
+		machine_labels, n_machine_labels)
+  	datasets[s] = d
+	return d
+end
+
 #Util functions for dataset
 function Base.size(d::dataset)
   return d.size
