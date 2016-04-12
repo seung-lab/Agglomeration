@@ -4,19 +4,19 @@ run(`git submodule update --init`)
 seg= abspath(string( dirname(@__FILE__) ,"/../deps/seg-error/"))
 run(`make -C $seg`)
 
-train= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/ds_train"))
+train= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/SNEMI3D/ds_train"))
 run(`gzip -d $(train)/affinities.jls.gz`)
 run(`gzip -d $(train)/human_labels.jls.gz`)
 run(`gzip -d $(train)/image.jls.gz`)
 run(`gzip -d $(train)/machine_labels.jls.gz`)
 
-test= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/ds_test"))
+test= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/SNEMI3D/ds_test"))
 run(`gzip -d $(test)/affinities.jls.gz`)
 run(`gzip -d $(test)/human_labels.jls.gz`)
 run(`gzip -d $(test)/image.jls.gz`)
 run(`gzip -d $(test)/machine_labels.jls.gz`)
 
-
+#=
 # Upsample
 for  folder in ["test"]
   machine_labels=h5read("$(dirname(@__FILE__))/datasets/ds_$(folder)/machine_labels.h5","/main")
@@ -32,3 +32,4 @@ for  folder in ["test"]
   h5write("$(dirname(@__FILE__))/datasets/us_$(folder)/machine_labels.h5","/dend",dend)
   h5write("$(dirname(@__FILE__))/datasets/us_$(folder)/machine_labels.h5","/dendValues",dendValues)
 end
+=#
