@@ -3,15 +3,8 @@
 
 To install run:
 ```
-Pkg.clone("git@github.com:seung-lab/Agglomerator.git")
-```
-You also need to install segascorus in `src`
-```
-- cd src
-- git clone https://github.com/seung-lab/segascorus.git
-- cd segascorus
-- make
-- mv ~__init__.py~ __init__.py
+- Pkg.clone("git@github.com:seung-lab/Agglomerator.git")
+- Pkg.build("Agglomerator")
 ```
 The Vis module requires PyQtGraph.
 
