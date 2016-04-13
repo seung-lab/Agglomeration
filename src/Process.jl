@@ -38,8 +38,14 @@ function forward{T,S}(affinities::Array{T,4}, watershed::Array{S,3}; agglomerato
 	rg= LabelData.atomic_region_graph(dataset.edges)
 	apply_agglomeration!(rg, agglomerator, threshold)
 	mst = MST.build_mst(rg)
+	N=length(mst.dendValues)
+	dend = zeros(UInt32, N,2)
+	for i in 1:N
+		dend[i,:]=mst.dend[i]
+	end
+	dendValues = mst.dendValues
 
-	return mst
+	return (dend, dendValues)
 end
 
 end #module
