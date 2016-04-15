@@ -43,6 +43,7 @@ function forward{T,S}(affinities::Array{T,4}, watershed::Array{S,3}; agglomerato
 	for i in 1:N
 		dend[i,:]=mst.dend[i]
 	end
+	dend[:,1], dend[:,2] = dend[:,2], dend[:,1]
 	dendValues = mst.dendValues
 
 	return (dend, dendValues)
