@@ -8,18 +8,18 @@ module Agglomerator
 
  
 function __init__()
-  add_path("/Agglomerator/src/")
-  add_path("/Agglomerator/src/InputOutput")
-  add_path("/Agglomerator/src/Features")
-  add_path("/Agglomerator/src/Visualization")
-  add_path("/Agglomerator/test")
-  add_path("/Agglomerator/deps/watershed/src-julia")
+  add_path("Agglomerator/src/")
+  add_path("Agglomerator/src/InputOutput")
+  add_path("Agglomerator/src/Features")
+  add_path("Agglomerator/src/Visualization")
+  add_path("Agglomerator/test")
+  add_path("Agglomerator/deps/watershed/src-julia")
 
 end
 
 
 function add_path(path)
-  src_path = string(Pkg.dir(),path)
+  src_path = joinpath(Pkg.dir(),path)
   if !(src_path in LOAD_PATH)  
     push!(LOAD_PATH, src_path)
   end
