@@ -4,17 +4,21 @@ run(`git submodule update --init`)
 seg= abspath(string( dirname(@__FILE__) ,"/../deps/seg-error/"))
 run(`make -C $seg`)
 
-train= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/SNEMI3D/ds_train"))
-run(`gzip -d $(train)/affinities.jls.gz`)
-run(`gzip -d $(train)/human_labels.jls.gz`)
-run(`gzip -d $(train)/image.jls.gz`)
-run(`gzip -d $(train)/machine_labels.jls.gz`)
 
+file_tails = ["affinities.jls.gz","human_labels.jls.gz","image.jls.gz","machine_labels.jls.gz"]
+
+train= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/SNEMI3D/ds_train"))
 test= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/SNEMI3D/ds_test"))
-run(`gzip -d $(test)/affinities.jls.gz`)
-run(`gzip -d $(test)/human_labels.jls.gz`)
-run(`gzip -d $(test)/image.jls.gz`)
-run(`gzip -d $(test)/machine_labels.jls.gz`)
+
+for tail in file_tails
+
+  full_path_train = string(train,"/",tail)
+  isfile( full_path_train ) && run(`gzip -d $(full_path_train)`)
+
+  full_path_test  = string(test, "/",tail)
+  isfile( full_path_test  ) && run(`gzip -d $(full_path_test )`)
+
+end
 
 #=
 # Upsample
