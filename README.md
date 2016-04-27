@@ -13,3 +13,5 @@ The Vis module requires PyQtGraph.
 - `using Process`
 - `dend, dendValues = forward(aff, segm)`
 
+## Dependencies
+- Memoize
