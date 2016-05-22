@@ -27,8 +27,8 @@ function build_mst(rg)
     
     subtree = graph_to_tree(atomic_region_graph)
 
-    push!(mst.dend, subtree.dend...)
-    push!(mst.dendValues, subtree.dendValues...)
+    append!(mst.dend, subtree.dend)
+    append!(mst.dendValues, subtree.dendValues)
 
   end
 
