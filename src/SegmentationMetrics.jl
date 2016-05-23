@@ -1,6 +1,5 @@
 __precompile__()
 module SegmentationMetrics
-using Agglomerator #import paths to other modules
 
 export rand_index,nick_index
 using PyCall

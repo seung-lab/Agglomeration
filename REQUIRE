@@ -4,9 +4,7 @@ Iterators
 Memoize
 FixedSizeArrays
 PyCall
-ArgParse
 HDF5
 DataFrames
-Gadfly
 ImageView
-
+Watershed
