@@ -1,6 +1,3 @@
 [submodule "deps/seg-error"]
 	path = deps/seg-error
 	url = https://github.com/seung-lab/segerror.git
-[submodule "deps/watershed"]
-	path = deps/watershed
-	url = git@github.com:seung-lab/watershed.git
