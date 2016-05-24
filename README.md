@@ -5,12 +5,10 @@
 - Pkg.clone("git@github.com:seung-lab/Agglomeration.git")
 - Pkg.build("Agglomeration")
 ```
-The Vis module requires PyQtGraph.
 
 ## Usage
-- `using Agglomeration`
-- `using Process`
-- `dend, dendValues = forward(aff, segm)`
-
-## Dependencies
-- Memoize
+```
+using Agglomeration
+using Process
+dend, dendValues = forward(aff, segm)
+```
