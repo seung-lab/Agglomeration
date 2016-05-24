@@ -1,9 +1,9 @@
 #!/bin/bash
 
 julia -e 'Pkg.clone(pwd())'
-julia -e 'Pkg.build("Agglomerator")'
+julia -e 'Pkg.build("Agglomeration")'
 if [ -f test/runtests.jl ]; then
-  julia --check-bounds=yes -e 'Pkg.test("Agglomerator", coverage=false)'
+  julia --check-bounds=yes -e 'Pkg.test("Agglomeration", coverage=false)'
 fi
 
 #That warning occurs when inlining is turned off.
