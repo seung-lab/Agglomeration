@@ -6,7 +6,6 @@ module Features
 using Agglomeration
 using Memoize
 using RegionGraphs
-using SparseVectors
 
 export min_affinity, max_affinity, mean_affinity, hist_affinity, contact_area, volume, soft_label_factory
 
@@ -107,25 +106,5 @@ function mean_affinity(x::Edge)
 	sum_affinity(x)/(contact_area(x)+0.0001)
 end
 
-function soft_label_factory{T}(incidence::AbstractArray{T,2})
-	const incidence2=transpose(incidence)
-	const d=Dict{Region,typeof(getcol(incidence2, 1))}()
-	function soft_label(x::AtomicRegion)
-		#incidence[x.label,:]
-		#incidence2[:,x.label]
-		getcol(incidence2, x.label)
-	end
-	function soft_label(x::TreeRegion)
-		if !haskey(d,x)
-			d[x]=soft_label(x.left) + soft_label(x.right)
-		end
-		return d[x]
-	end
-	function normalized_soft_label(x::Region)
-		t=soft_label(x)
-		return (1f0/(norm(t)+0.00001))*t
-	end
-	return normalized_soft_label
-end
 
 end

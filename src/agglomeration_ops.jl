@@ -119,7 +119,7 @@ function apply_agglomeration!{T}(rg::RegionGraph, ag, threshold::T, subset::Set)
 	end
 	return rg
 end
-function apply_agglomeration!{T}(rg::RegionGraph, ag, threshold::T)
+function apply_agglomeration!{T}(rg::RegionGraph, ag, threshold::T; error_fun=()->nothing)
 	pq=PriorityQueue(Tuple{Region,Region,Edge}, T, Base.Order.Reverse)
 
 	#place all edges of the regiongraph in the queue
@@ -141,6 +141,7 @@ function apply_agglomeration!{T}(rg::RegionGraph, ag, threshold::T)
 				print("\rmerge $(n), $(priority)")
 			end
 			uv = merge!(rg, u, v)
+			error_fun()
 
 			#add all neighbours of new region to the queue
 			for (nb, edge) in rg[uv]

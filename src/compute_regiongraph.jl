@@ -7,10 +7,12 @@ function compute_regiongraph{T,S}(labels::Array{T,3}, affinities::Array{S,4})
 	edges = Dict{Tuple{T,T}, AtomicEdge}()
 	s0,s1,s2 = size(labels)
 	for l in labels
-		if !haskey(vertices,l)
-			vertices[l]=AtomicRegion(l)
+		if l != 0
+			if !haskey(vertices,l)
+				vertices[l]=AtomicRegion(l)
+			end
+			push!(vertices[l], 1, 1, 1)
 		end
-		push!(vertices[l], 1, 1, 1)
 	end
 	for k in 2:s2,j in 2:s1,i in 2:s0
 		l=labels[i,j,k]
