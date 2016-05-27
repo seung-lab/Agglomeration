@@ -30,7 +30,8 @@ function dequeue2!(pq::PriorityQueue)
 	return x
 end
 
-function apply_batched_agglomeration!{T}(rg::RegionGraph, ag; thresholds::FloatRange{T}=0.99:0.05:0.5)
+#=
+function apply_batched_agglomeration!{T}(rg::RegionGraph, ag; thresholds::FloatRange{T}=0.99:0.01:0.5, error_fun=()->nothing, report_freq=100)
 	pq=PriorityQueue(Tuple{Region,Region,Edge}, T, Base.Order.Reverse)
 
 	for u in keys(rg)
@@ -49,14 +50,15 @@ function apply_batched_agglomeration!{T}(rg::RegionGraph, ag; thresholds::FloatR
 		staging=Tuple{Region,Region}[]
 		while(!isempty(pq) && peek(pq)[2] > threshold)
 			(u,v), priority = dequeue2!(pq)
-			if haskey(rg, u) && haskey(rg, v)
+			ru = root(u)
+			rv = root(v)
+			if ru != rv
 				n+=1
-				if n%100 == 0
+				if n%report_freq == 0
 					print("\rmerge $(n), $(priority)")
+					#error_fun()
 				end
-				if root(u) != root(v)
-					uv = merge!(rg, root(u), root(v))
-				end
+				uv = merge!(rg, ru, rv)
 
 				#add all neighbours of new region to the queue
 				for (nb, edge) in rg[uv]
@@ -68,15 +70,17 @@ function apply_batched_agglomeration!{T}(rg::RegionGraph, ag; thresholds::FloatR
 			u,v = root(s[1]),root(s[2])
 			if u != v
 				edge = rg[u][v]
-				score = ag(u,v,rg[u][v])
-				if score > thresholds[end]
-					pq[(u,v,edge)]=score
-				end
+				#if !haskey(pq,(u,v,edge))
+					score = ag(u,v,rg[u][v])
+					if score > thresholds[end]
+						pq[(u,v,edge)]=score
+					end
+				#end
 			end
 		end
 	end
-
 end
+=#
 
 function apply_agglomeration!{T}(rg::RegionGraph, ag, threshold::T, subset::Set)
 	pq=PriorityQueue(Tuple{Region,Region,Edge}, T, Base.Order.Reverse)
@@ -119,7 +123,7 @@ function apply_agglomeration!{T}(rg::RegionGraph, ag, threshold::T, subset::Set)
 	end
 	return rg
 end
-function apply_agglomeration!{T}(rg::RegionGraph, ag, threshold::T; error_fun=()->nothing)
+function apply_agglomeration!{T}(rg::RegionGraph, ag, threshold::T; report_freq=100, error_fun=()->nothing)
 	pq=PriorityQueue(Tuple{Region,Region,Edge}, T, Base.Order.Reverse)
 
 	#place all edges of the regiongraph in the queue
@@ -137,11 +141,11 @@ function apply_agglomeration!{T}(rg::RegionGraph, ag, threshold::T; error_fun=()
 		(u,v), priority = dequeue2!(pq)
 		if haskey(rg, u) && haskey(rg, v)
 			n+=1
-			if n%100 == 0
+			if n%report_freq == 0
 				print("\rmerge $(n), $(priority)")
+				error_fun()
 			end
 			uv = merge!(rg, u, v)
-			error_fun()
 
 			#add all neighbours of new region to the queue
 			for (nb, edge) in rg[uv]

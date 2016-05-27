@@ -294,6 +294,7 @@ end
 
 function add_edge!(rg, head, tail, e)
 	@assert !haskey(rg[head],tail)
+	@assert !haskey(rg[tail],head)
 	rg[head][tail]=e
 	rg[tail][head]=reverse(e)
 	@assert begin
@@ -330,6 +331,7 @@ function merge!(rg, head, tail)
 	@assert haskey(rg, head)
 	@assert haskey(rg, tail)
 	if !haskey(rg[head], tail)
+		@assert !haskey(rg[tail], head)
 		println("Merging along empty edge")
 		edge=MergeEdge()
 	else
@@ -341,7 +343,7 @@ function merge!(rg, head, tail)
 	new_vertex=TreeRegion(head, tail, edge)
 	add_vertex!(rg, new_vertex)
 
-	for nb in Set(chain(keys(head_nbs),keys(tail_nbs)))
+	for nb in unique(chain(keys(head_nbs),keys(tail_nbs)))
 		e1=head_nbs[nb]
 		e2=tail_nbs[nb]
 		add_edge!(rg, new_vertex, nb, HeadMergeEdge(e1,e2))
