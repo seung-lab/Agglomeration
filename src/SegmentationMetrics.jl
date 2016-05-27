@@ -34,7 +34,7 @@ function soft_label_factory{T}(incidence::AbstractArray{T,2})
 	end
 	function normalized_soft_label(x::Region)
 		t=soft_label(x)
-		return (1f0/(norm(t)+0.00001))*t
+		return (1f0/(norm(t)+1f-6))*t
 	end
 	return (normalized_soft_label, soft_label)
 end
