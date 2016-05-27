@@ -13,8 +13,16 @@ export min_affinity, max_affinity, mean_affinity, hist_affinity, contact_area, v
 function sum_affinity(x::AtomicEdge)
 	x.sum_affinity
 end
-@memoize function sum_affinity(x::TreeEdge)
-	sum_affinity(x.left) + sum_affinity(x.right)
+
+const sum_affinity_dict=Dict{Edge, Float32}()
+function sum_affinity(x::TreeEdge)
+	if !haskey(sum_affinity_dict, x)
+		tmp=sum_affinity(x.left)+sum_affinity(x.right)
+		sum_affinity_dict[x]=tmp
+		tmp
+	else
+		sum_affinity_dict[x]
+	end
 end
 function sum_affinity(x::ReverseEdge)
 	sum_affinity(reverse(x))
@@ -22,8 +30,16 @@ end
 function contact_area(x::AtomicEdge)
 	x.area
 end
-@memoize function contact_area(x::TreeEdge)
-	contact_area(x.left)+contact_area(x.right)
+
+const contact_area_dict=Dict{Edge, Float32}()
+function contact_area(x::TreeEdge)
+	if !haskey(contact_area_dict, x)
+		tmp=contact_area(x.left)+contact_area(x.right)
+		contact_area_dict[x]=tmp
+		tmp
+	else
+		contact_area_dict[x]
+	end
 end
 
 @memoize function volume(x::TreeRegion)
@@ -69,8 +85,15 @@ function hist_affinity(x::MergeEdge)
 	fill(1f-3, (5,))
 end
 
-@memoize function max_affinity(x::TreeEdge)
-	max(max_affinity(x.left),max_affinity(x.right))
+const max_affinity_dict=Dict{Edge,Float32}()
+function max_affinity(x::TreeEdge)
+	if !haskey(max_affinity_dict, x)
+		tmp=max(max_affinity(x.left),max_affinity(x.right))
+		max_affinity_dict[x]=tmp
+		tmp
+	else
+		max_affinity_dict[x]
+	end
 end
 function max_affinity(x::EmptyEdge)
 	0f0
