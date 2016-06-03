@@ -4,6 +4,7 @@
 ```
 - Pkg.clone("git@github.com:seung-lab/Agglomeration.git")
 - Pkg.build("Agglomeration")
+- Pkg.resolve()
 ```
 
 ## Usage
