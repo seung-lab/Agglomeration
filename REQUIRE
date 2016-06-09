@@ -5,3 +5,4 @@ Memoize
 PyCall
 HDF5
 SparseVectors
+StatsBase
