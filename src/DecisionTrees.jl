@@ -10,7 +10,6 @@ export Leaf, Node, print_tree, depth, build_tree, apply_tree, build_forest, appl
 
 immutable Leaf{T}
 	majority::T
-	values::Vector
 end
 
 immutable Node{T}
@@ -120,7 +119,7 @@ function build_tree{T}(labels::Array{T,1}, features::Array{T,2}; nsubfeatures=si
 
 	#println((length(labels_left), length(labels_right), best_val))
 	if length(labels_left)==0 || length(labels_right)==0 || best_val < info_threshold
-		return Leaf(mean(labels),labels)
+		return Leaf(mean(labels))
 	else
 		return Node(id, thresh,
 		build_tree(labels_left,features[split,:]; nsubfeatures=nsubfeatures,info_threshold=info_threshold),
