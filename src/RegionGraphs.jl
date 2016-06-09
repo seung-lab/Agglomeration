@@ -256,7 +256,7 @@ edgecount(e::MergeEdge)=1
 
 ###Maintaining Features###
 @inline function push!(u::AtomicRegion, i,j,k)
-	u[:volume] += 1
+	u.features[:volume] += 1
 end
 
 @inline function push!(u::AtomicRegion, i,j,k, axon, dendrite, glial)
