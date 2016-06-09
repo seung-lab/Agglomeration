@@ -11,8 +11,8 @@ using DataStructures
 using Iterators
 abstract Agglomerator
 import Base: call
-export apply_agglomeration!, apply_deagglomeration!, apply_batched_agglomeration!,  constrained_mean_aff_agglomerator
-export Agglomerator, LinearAgglomerator, AccumulatingAgglomerator, RandomForestAgglomerator, ConstrainedAgglomerator, SVMAgglomerator
+export apply_agglomeration!, apply_deagglomeration!, priority_apply_agglomeration!,  constrained_mean_aff_agglomerator
+export Agglomerator, TeacherAgglomerator, LinearAgglomerator, AccumulatingAgglomerator, RandomForestAgglomerator, ConstrainedAgglomerator, SVMAgglomerator
 export train!
 
 ###Agglomerator Types###
@@ -49,7 +49,26 @@ for T in subtypes(Agglomerator)
 		function call(agg::$T, r::AtomicRegion)
 			1.0
 		end
+
+		#This function is called to generate the priority of the merge
+		#The merge priority might be different from the decision value
+		function priority_call(agg::$T, u::Region, v::Region, edge::Edge)
+			agg(u,v,edge)
+		end
 	end)
+end
+
+type TeacherAgglomerator{S<:Agglomerator,T<:Agglomerator} <: Agglomerator
+	teacher::S
+	student::T
+end
+
+function call(agg::TeacherAgglomerator, head::Region, tail::Region, edge::Edge)
+	agg.teacher(head,tail,edge)
+end
+
+function priority_call(agg::TeacherAgglomerator, head::Region, tail::Region, edge::Edge)
+	agg.student(head,tail,edge)
 end
 
 function call(agg::LinearAgglomerator, head::Region, tail::Region, edge::Edge)
