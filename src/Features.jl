@@ -7,7 +7,9 @@ using Agglomeration
 using Memoize
 using RegionGraphs
 
-export min_affinity, max_affinity, mean_affinity, hist_affinity, contact_area, volume, soft_label_factory
+export min_affinity, max_affinity, mean_affinity, hist_affinity, contact_area, volume, soft_label_factory, centroid
+
+export mean_glial, mean_axon, mean_dendrite
 
 
 function sum_affinity(x::AtomicEdge)
@@ -46,7 +48,7 @@ end
 	volume(x.left) + volume(x.right)
 end
 function volume(x::AtomicRegion)
-	x.volume
+	x.features[:volume]
 end
 
 function contact_area(x::ReverseEdge)
@@ -129,5 +131,56 @@ function mean_affinity(x::Edge)
 	sum_affinity(x)/(contact_area(x)+0.0001)
 end
 
+
+function sum_dendrite(x::AtomicRegion)
+	x.features[:dendrite]
+end
+@memoize function sum_dendrite(x::TreeRegion)
+	sum_dendrite(x.left)+sum_dendrite(x.right)
+end
+function mean_dendrite(x::Region)
+	sum_dendrite(x)/volume(x)
+end
+
+function sum_axon(x::AtomicRegion)
+	x.features[:axon]
+end
+@memoize function sum_axon(x::TreeRegion)
+	sum_axon(x.left)+sum_axon(x.right)
+end
+function mean_axon(x::Region)
+	sum_axon(x)/volume(x)
+end
+
+function sum_glial(x::AtomicRegion)
+	x.features[:glial]
+end
+@memoize function sum_glial(x::TreeRegion)
+	sum_glial(x.left)+sum_glial(x.right)
+end
+function mean_glial(x::Region)
+	sum_glial(x)/volume(x)
+end
+
+
+
+@memoize function sum_pos(x::TreeEdge)
+	sum_pos(x.left)+sum_pos(x.right)
+end
+function sum_pos(x::AtomicEdge)
+	x.sum_pos
+end
+function sum_pos(x::ReverseEdge)
+	sum_pos(reverse(x))
+end
+function sum_pos(x::EmptyEdge)
+	Float32[0,0,0]
+end
+function sum_pos(x::MergeEdge)
+	Float32[0,0,0]
+end
+function centroid(x::Edge)
+	sum_pos(x)/contact_area(x)
+end
 
 end

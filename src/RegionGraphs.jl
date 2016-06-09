@@ -44,12 +44,12 @@ end
 type AtomicRegion <: Region
 	label
 	parent::Region
-	volume::Float32
+	features::DefaultDict{Symbol,Float32,Float32}
 	function AtomicRegion(label)
 		x=new()
 		x.label=label
 		x.parent=x
-		x.volume=0
+		x.features=DefaultDict(Symbol,Float32,0f0)
 		return x
 	end
 end
@@ -90,11 +90,12 @@ type AtomicEdge <: Edge
 	max_affinity::Float32
 	min_affinity::Float32
 	hist_affinity::Array{Float32}
+	sum_pos::Array{Float32}
 	head::AtomicRegion
 	tail::AtomicRegion
 end
 function AtomicEdge(ht)
-	AtomicEdge(0f0,0f0,0f0,1f0,zeros(Float32,5),ht[1],ht[2])
+	AtomicEdge(0f0,0f0,0f0,1f0,zeros(Float32,5),zeros(Float32,3),ht[1],ht[2])
 end
 immutable ReverseEdge <: Edge
 	rev::Edge
@@ -255,7 +256,14 @@ edgecount(e::MergeEdge)=1
 
 ###Maintaining Features###
 @inline function push!(u::AtomicRegion, i,j,k)
-	u.volume += 1
+	u[:volume] += 1
+end
+
+@inline function push!(u::AtomicRegion, i,j,k, axon, dendrite, glial)
+	u.features[:volume] += 1
+	u.features[:dendrite] += dendrite
+	u.features[:axon] += axon
+	u.features[:glial] += glial
 end
 
 @inline function push!(e::AtomicEdge, i,j,k, affinity)
@@ -264,6 +272,7 @@ end
 	e.max_affinity=max(e.max_affinity, affinity)
 	e.min_affinity=min(e.min_affinity, affinity)
 	e.hist_affinity[round(Int,floor(4.999*affinity)+1)]+=1
+	e.sum_pos+=Float32[i,j,k]
 end
 
 ######################## Region Graph ########################
