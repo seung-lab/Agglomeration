@@ -1,10 +1,5 @@
 using HDF5
 
-run(`git submodule update --init`)
-seg= abspath(string( dirname(@__FILE__) ,"/../deps/seg-error/"))
-run(`make -C $seg`)
-
-
 file_tails = ["affinities.jls.gz","human_labels.jls.gz","image.jls.gz","machine_labels.jls.gz"]
 
 train= abspath(string( dirname(@__FILE__) ,"/../deps/datasets/SNEMI3D/ds_train"))

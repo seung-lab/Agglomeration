@@ -2,16 +2,10 @@ __precompile__()
 module SegmentationMetrics
 
 export rand_index,nick_index
-using PyCall
 using Features
 using RegionGraphs
 using DataStructures
 using SparseVectors
-
-function __init__()
-	unshift!(PyVector(pyimport("sys")["path"]),"$(dirname(@__FILE__))/../deps/seg-error")
-	global segerror=pyimport("error")
-end
 
 function soft_label_factory{T}(incidence::AbstractArray{T,2})
 	const incidence2=transpose(incidence)
@@ -37,12 +31,6 @@ function soft_label_factory{T}(incidence::AbstractArray{T,2})
 		return (1f0/(norm(t)+1f-6))*t
 	end
 	return (normalized_soft_label, soft_label)
-end
-
-function nick_index{T<:Unsigned}(A::Array{T},B::Array{T};kwargs...)
-	#a=convert(Array{UInt},A)
-	#b=convert(Array{UInt},B)
-	segerror["seg_fr_variation_information"](A,B;kwargs...)
 end
 
 function rand_index(A::Array,B::Array)
