@@ -5,15 +5,14 @@ export rand_index,nick_index
 using Features
 using RegionGraphs
 using DataStructures
-using SparseVectors
 
 function soft_label_factory{T}(incidence::AbstractArray{T,2})
 	const incidence2=transpose(incidence)
 	const d=Dict{Region,typeof(getcol(incidence2, 1))}()
 	function soft_label(x::AtomicRegion)
 		#incidence[x.label,:]
-		#incidence2[:,x.label]
-		t=getcol(incidence2, x.label)
+		t=incidence2[:,x.label]
+		#t=getcol(incidence2, x.label)
 		if length(nonzeros(t))==0
 			t[1]=1 # sparse vectors have a bug with zero vectors
 			#fixed in julia-0.5
