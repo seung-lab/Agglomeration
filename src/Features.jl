@@ -1,6 +1,4 @@
-if VERSION < v"0.5.0-dev"
-	__precompile__()
-end
+__precompile__()
 
 module Features
 using Agglomeration

@@ -8,15 +8,15 @@ using DataStructures
 
 function soft_label_factory{T}(incidence::AbstractArray{T,2})
 	const incidence2=transpose(incidence)
-	const d=Dict{Region,typeof(getcol(incidence2, 1))}()
+	const d=Dict{Region,typeof(incidence2[:,1])}()
 	function soft_label(x::AtomicRegion)
 		#incidence[x.label,:]
 		t=incidence2[:,x.label]
 		#t=getcol(incidence2, x.label)
-		if length(nonzeros(t))==0
-			t[1]=1 # sparse vectors have a bug with zero vectors
+		#if length(nonzeros(t))==0
+		#	t[1]=1 # sparse vectors have a bug with zero vectors
 			#fixed in julia-0.5
-		end
+		#end
 		t
 	end
 	function soft_label(x::TreeRegion)
@@ -84,7 +84,7 @@ function incidence_matrix(rg::RegionGraph, soft_label)
 	V=Int[]
 	for (i,r) in enumerate(keys(rg))
 		s=soft_label(r)
-		for (j,v) in zip(nonzeroinds(s), nonzeros(s))
+		for (j,v) in zip(s.nzind, s.nzval)
 			push!(I,i)
 			push!(J,j)
 			push!(V,v)
