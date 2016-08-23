@@ -34,7 +34,7 @@ function MST(rg, agg::Agglomerator)
   return mst
 end
 
-function graph_to_tree(region_graph::DataStructures.DefaultDict{Int64,Dict{Int64,Real},Function}) 
+function graph_to_tree(region_graph) 
 	#BFS
 	tree = MST(Array{UInt32,1}[], Array{Float32,1}())
 	visited = Set()
