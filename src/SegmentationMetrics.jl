@@ -1,4 +1,4 @@
-__precompile__()
+#__precompile__()
 module SegmentationMetrics
 
 export rand_index,nick_index
