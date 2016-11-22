@@ -57,7 +57,17 @@ function rand_index(incidence_matrix)
 	both=sum(incidence_matrix.^2)
 	total_A=sum(sum(incidence_matrix,2).^2)
 	total_B=sum(sum(incidence_matrix,1).^2)
-	Dict(:recall=> both/total_A,:precision=>both/total_B)
+
+	A=incidence_matrix
+	A/=sum(A)
+	sums1 = sum(A,1)
+	sums2 = sum(A,2)
+	vi_precision = sum([(A[i,j] > 0 ? -A[i,j]*log(A[i,j]/sums1[1,j]) : 0) for i in 1:size(A,1), j in 1:size(A,2)])
+	vi_recall = sum([(A[i,j] > 0 ? -A[i,j]*log(A[i,j]/sums2[i,1]) : 0) for i in 1:size(A,1), j in 1:size(A,2)])
+	Dict(:recall=> both/total_A,:precision=>both/total_B, :vi_precision=>vi_precision, :vi_recall=>vi_recall)
+end
+
+function vi(A)
 end
 
 function incidence_matrix{S<:Integer,T<:Integer}(machine_labels::Array{S}, human_labels::Array{T})
