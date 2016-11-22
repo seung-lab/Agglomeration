@@ -162,6 +162,40 @@ function priority_apply_agglomeration!{T}(rg::RegionGraph, ag::Agglomerator, thr
 	println("Merged to $(length(keys(rg))) regions")
 	return rg
 end
+function priority_apply_agglomeration2!{T}(rg::RegionGraph, ag::Agglomerator, threshold::T; report_freq=100, error_fun=()->nothing)
+	pq=PriorityQueue(Tuple{Region,Region,Edge}, T, Base.Order.Reverse)
+
+	#place all edges of the regiongraph in the queue
+	for u in keys(rg)
+		for (v,edge) in rg[u]
+			priority_score = priority_call(ag,u,v,rg[u][v])
+			Collections.enqueue!(pq,(u,v,edge),priority_score)
+		end
+	end
+
+	n=0
+	while(!isempty(pq))
+		(u,v), priority = dequeue2!(pq)
+		if haskey(rg, u) && haskey(rg, v) && ag(u,v,rg[u][v]) > threshold
+			n+=1
+			if n%report_freq == 0
+				print("\rmerge $(n), $(priority)")
+				error_fun()
+			end
+			uv = merge!(rg, u, v)
+
+			#add all neighbours of new region to the queue
+			for (nb, edge) in rg[uv]
+				priority_score = priority_call(ag,uv,nb,edge)
+				Collections.enqueue!(pq,(uv,nb, edge),priority_score)
+			end
+		end
+	end
+	error_fun()
+	println()
+	println("Merged to $(length(keys(rg))) regions")
+	return rg
+end
 function apply_agglomeration!{T}(rg::RegionGraph, ag::Agglomerator, threshold::T; report_freq=100, error_fun=()->nothing)
 	pq=PriorityQueue(Tuple{Region,Region,Edge}, T, Base.Order.Reverse)
 
