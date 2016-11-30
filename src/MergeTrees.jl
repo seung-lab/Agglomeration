@@ -51,8 +51,8 @@ function restrict(x::Leaf, set)
 	end
 end
 function restrict(x::MergeNode, set)
-	left = restrict(x.left)
-	right = restrict(x.right)
+	left = restrict(x.left, set)
+	right = restrict(x.right, set)
 	return MergeNode(x.weight, left, right)
 end
 function restrict(x::Empty, set)
