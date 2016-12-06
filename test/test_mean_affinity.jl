@@ -1,11 +1,7 @@
-using Agglomerator
-
+using Agglomeration
+using Agglomerators
+include("TestUtils.jl")
 using TestUtils
-using Agglomerators,Features
 
-ag=LinearAgglomerator(
-Function[
-x->mean_affinity(x[3]),
-],
-[1.0])
-run_test(ag,"mean_affinity")
+load_dataset("~/datasets/AC3/test/")
+run_test("mean_affinity", Agglomerators.MeanAffinityAgglomerator(), thresh=0.0)

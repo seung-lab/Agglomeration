@@ -58,8 +58,8 @@ for T in subtypes(Agglomerator)
 end
 
 type TeacherAgglomerator{S<:Agglomerator,T<:Agglomerator} <: Agglomerator
-	teacher::S
-	student::T
+	teacher::T
+	student::S
 end
 
 function call(agg::TeacherAgglomerator, head::Region, tail::Region, edge::Edge)
