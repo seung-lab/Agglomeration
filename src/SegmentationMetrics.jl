@@ -5,7 +5,7 @@ export rand_index,nick_index
 using Features
 using RegionGraphs
 using DataStructures
-using SparseVectors
+#using SparseVectors
 
 function soft_label_factory{T}(incidence::AbstractArray{T,2})
 	const incidence2=transpose(incidence)
@@ -15,7 +15,7 @@ function soft_label_factory{T}(incidence::AbstractArray{T,2})
 		#incidence2[:,x.label]
 		t=getcol(incidence2, x.label)
 		if length(nonzeros(t))==0
-			t[1]=1 # sparse vectors have a bug with zero vectors
+			#t[1]=1 # sparse vectors have a bug with zero vectors
 			#fixed in julia-0.5
 		end
 		t
