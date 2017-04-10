@@ -1,6 +1,6 @@
 #Based on DecisionTree.jl
 #Information theoretic tree pruning rewritten
-__precompile__()
+#__precompile__()
 module DecisionTrees
 
 import Base: length, convert, promote_rule, show, start, next, done

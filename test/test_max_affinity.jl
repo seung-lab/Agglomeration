@@ -1,10 +1,7 @@
-using Agglomerator
+using Agglomeration
+using Agglomerators
+include("TestUtils.jl")
 using TestUtils
-using Agglomerators,Features
 
-ag=LinearAgglomerator(
-Function[
-x->max_affinity(x[3]),
-],
-[1.0])
-run_test(ag,"max_affinity")
+load_dataset("~/Piriform/test/")
+run_test("max_affinity", Agglomerators.MaxAffinityAgglomerator())

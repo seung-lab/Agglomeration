@@ -1,6 +1,3 @@
-if VERSION < v"0.5.0-dev"
-	__precompile__()
-end
 module Agglomerators
 using Agglomeration
 
@@ -12,7 +9,7 @@ using Iterators
 abstract Agglomerator
 import Base: call
 export apply_agglomeration!, apply_deagglomeration!, priority_apply_agglomeration!,  constrained_mean_aff_agglomerator
-export Agglomerator, TeacherAgglomerator, LinearAgglomerator, AccumulatingAgglomerator, RandomForestAgglomerator, ConstrainedAgglomerator, SVMAgglomerator
+export Agglomerator, TeacherAgglomerator, LinearAgglomerator, AccumulatingAgglomerator, RandomForestAgglomerator, ConstrainedAgglomerator, SVMAgglomerator, GatedAgglomerator
 export train!
 
 ###Agglomerator Types###
@@ -32,6 +29,8 @@ type ConstrainedAgglomerator <: Agglomerator
 	agg
 end
 immutable MeanAffinityAgglomerator <: Agglomerator
+end
+immutable SmoothedMeanAffinityAgglomerator <: Agglomerator
 end
 immutable MaxAffinityAgglomerator <: Agglomerator
 end
@@ -59,8 +58,8 @@ for T in subtypes(Agglomerator)
 end
 
 type TeacherAgglomerator{S<:Agglomerator,T<:Agglomerator} <: Agglomerator
-	teacher::S
-	student::T
+	teacher::T
+	student::S
 end
 
 function call(agg::TeacherAgglomerator, head::Region, tail::Region, edge::Edge)
@@ -69,6 +68,44 @@ end
 
 function priority_call(agg::TeacherAgglomerator, head::Region, tail::Region, edge::Edge)
 	agg.student(head,tail,edge)
+end
+
+type GatedAgglomerator{T<:Agglomerator} <: Agglomerator
+	gate
+	agg::T
+end
+
+reject=0
+accept=0
+function call(agg::GatedAgglomerator, head::Region, tail::Region, edge::Edge)
+	if agg.gate(head,tail,edge)
+		global accept
+		accept+=1
+		return agg.agg(head,tail,edge)
+	else
+		global reject
+		reject+=1
+		return 0f0
+	end
+end
+
+type AccumulatingGatedAgglomerator{T<:Agglomerator} <: Agglomerator
+	gate
+	agg::T
+	rejected_examples
+	accepted_examples
+end
+
+AccumulatingGatedAgglomerator(gate,agg)=AccumulatingGatedAgglomerator(gate,agg,Tuple{Region,Region,Edge}[],Tuple{Region,Region,Edge}[])
+
+function call(agg::AccumulatingGatedAgglomerator, head::Region, tail::Region, edge::Edge)
+	if agg.gate(head,tail,edge)
+		push!(agg.accepted_examples,(head,tail,edge))
+		return agg.agg(head,tail,edge)
+	else
+		push!(agg.rejected_examples,(head,tail,edge))
+		return 0f0
+	end
 end
 
 function call(agg::LinearAgglomerator, head::Region, tail::Region, edge::Edge)
@@ -90,7 +127,7 @@ function independent(rg, s)
 end
 function call(agg::ConstrainedAgglomerator,head, tail, edge)
 	if !(independent(agg.constraintrg, Set(chain(atomic_regions(head), atomic_regions(tail)))))
-		return 0.0
+		return 0f0
 	else
 		agg.agg(head,tail,edge)
 	end
@@ -100,6 +137,9 @@ function call(agg::MeanAffinityAgglomerator, head, tail, edge)
 end
 function call(agg::MaxAffinityAgglomerator, head, tail, edge)
 	return max_affinity(edge)
+end
+function call(agg::SmoothedMeanAffinityAgglomerator, head, tail, edge)
+	return smoothed_mean_affinity(edge)
 end
 
 

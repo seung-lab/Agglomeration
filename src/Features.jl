@@ -1,13 +1,11 @@
-if VERSION < v"0.5.0-dev"
-	__precompile__()
-end
+#__precompile__()
 
 module Features
 using Agglomeration
-using Memoize
+#using Memoize
 using RegionGraphs
 
-export min_affinity, max_affinity, mean_affinity, hist_affinity, contact_area, volume, soft_label_factory, centroid
+export smoothed_mean_affinity,min_affinity, max_affinity, mean_affinity, hist_affinity, contact_area, volume, soft_label_factory, centroid
 
 export mean_glial, mean_axon, mean_dendrite
 
@@ -44,8 +42,15 @@ function contact_area(x::TreeEdge)
 	end
 end
 
-@memoize function volume(x::TreeRegion)
-	volume(x.left) + volume(x.right)
+const volume_dict=Dict{Region,Float32}()
+function volume(x::TreeRegion)
+	if !haskey(volume_dict, x)
+		tmp = volume(x.left) + volume(x.right)
+		volume_dict[x]=tmp
+		tmp
+	else
+		volume_dict[x]
+	end
 end
 function volume(x::AtomicRegion)
 	x.features[:volume]
@@ -71,6 +76,12 @@ function mean_affinity(::EmptyEdge)
 	0f0
 end
 
+function smoothed_mean_affinity(e::Edge)
+	(sum_affinity(e))/(25+contact_area(e))
+end
+
+
+#=
 @memoize function hist_affinity(x::TreeEdge)
 	hist_affinity(x.left) + hist_affinity(x.right)
 end
@@ -86,6 +97,7 @@ end
 function hist_affinity(x::MergeEdge)
 	fill(1f-3, (5,))
 end
+=#
 
 const max_affinity_dict=Dict{Edge,Float32}()
 function max_affinity(x::TreeEdge)
@@ -110,7 +122,7 @@ function max_affinity(x::ReverseEdge)
 	max_affinity(reverse(x))
 end
 
-
+#=
 @memoize function min_affinity(x::TreeEdge)
 	min(min_affinity(x.left),min_affinity(x.right))
 end
@@ -126,12 +138,15 @@ end
 function min_affinity(x::ReverseEdge)
 	min_affinity(reverse(x))
 end
+=#
 
 function mean_affinity(x::Edge)
 	sum_affinity(x)/(contact_area(x)+0.0001)
 end
 
 
+
+#=
 function sum_dendrite(x::AtomicRegion)
 	x.features[:dendrite]
 end
@@ -161,9 +176,10 @@ end
 function mean_glial(x::Region)
 	sum_glial(x)/volume(x)
 end
+=#
 
 
-
+#=
 @memoize function sum_pos(x::TreeEdge)
 	sum_pos(x.left)+sum_pos(x.right)
 end
@@ -182,5 +198,6 @@ end
 function centroid(x::Edge)
 	sum_pos(x)/contact_area(x)
 end
+=#
 
 end

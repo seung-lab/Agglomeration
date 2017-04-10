@@ -1,23 +1,22 @@
-__precompile__()
+#__precompile__()
 module SegmentationMetrics
 
 export rand_index,nick_index
 using Features
 using RegionGraphs
 using DataStructures
-#using SparseVectors
 
 function soft_label_factory{T}(incidence::AbstractArray{T,2})
 	const incidence2=transpose(incidence)
-	const d=Dict{Region,typeof(getcol(incidence2, 1))}()
+	const d=Dict{Region,typeof(incidence2[:,1])}()
 	function soft_label(x::AtomicRegion)
 		#incidence[x.label,:]
-		#incidence2[:,x.label]
-		t=getcol(incidence2, x.label)
-		if length(nonzeros(t))==0
-			#t[1]=1 # sparse vectors have a bug with zero vectors
+		t=incidence2[:,x.label]
+		#t=getcol(incidence2, x.label)
+		#if length(nonzeros(t))==0
+		#	t[1]=1 # sparse vectors have a bug with zero vectors
 			#fixed in julia-0.5
-		end
+		#end
 		t
 	end
 	function soft_label(x::TreeRegion)
@@ -58,7 +57,17 @@ function rand_index(incidence_matrix)
 	both=sum(incidence_matrix.^2)
 	total_A=sum(sum(incidence_matrix,2).^2)
 	total_B=sum(sum(incidence_matrix,1).^2)
-	Dict(:recall=> both/total_A,:precision=>both/total_B)
+
+	A=incidence_matrix
+	A/=sum(A)
+	sums1 = sum(A,1)
+	sums2 = sum(A,2)
+	vi_precision = sum([(A[i,j] > 0 ? -A[i,j]*log(A[i,j]/sums1[1,j]) : 0) for i in 1:size(A,1), j in 1:size(A,2)])
+	vi_recall = sum([(A[i,j] > 0 ? -A[i,j]*log(A[i,j]/sums2[i,1]) : 0) for i in 1:size(A,1), j in 1:size(A,2)])
+	Dict(:recall=> both/total_A,:precision=>both/total_B, :vi_precision=>vi_precision, :vi_recall=>vi_recall)
+end
+
+function vi(A)
 end
 
 function incidence_matrix{S<:Integer,T<:Integer}(machine_labels::Array{S}, human_labels::Array{T})
@@ -85,7 +94,7 @@ function incidence_matrix(rg::RegionGraph, soft_label)
 	V=Int[]
 	for (i,r) in enumerate(keys(rg))
 		s=soft_label(r)
-		for (j,v) in zip(nonzeroinds(s), nonzeros(s))
+		for (j,v) in zip(s.nzind, s.nzval)
 			push!(I,i)
 			push!(J,j)
 			push!(V,v)

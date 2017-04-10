@@ -1,59 +1,39 @@
 module TestUtils
 
-using Agglomerator
-using Base.Test
-
-using SNEMI3D, Agglomerators, LabelData, SegmentationMetrics,Datasets,MST,InputOutput, piriform
+using Agglomeration
+using Agglomerators, RegionGraphs, SegmentationMetrics
 using DataFrames
 using Gadfly
+using HDF5
+using Save
 
-export run_test, save_error, plot_error
+export run_test, save_error, plot_error, load_dataset
+export machine_labels, human_labels, affinities, semantic_guess
 
-function run_test(ag,name, dataset="SNEMI3D")
+function run_test(name, ag; thresh=0.5)
+	println("testing $(name)")
+	rg,vertices,edges=RegionGraphs.compute_regiongraph(machine_labels, affinities)
 
-	if dataset == "SNEMI3D"
-		from = "$(dirname(@__FILE__))/../deps/datasets/SNEMI3D/us_test/omni/Empty.omni"
-  	to = "$(dirname(@__FILE__))/../deps/datasets/SNEMI3D/us_test/omni/$(name).omni"
-		copy_omni_project(from, to)
-		mst_path = "$(dirname(@__FILE__))/../deps/datasets/SNEMI3D/us_test/omni/$(name).omni.files/users/_default/segmentations/segmentation1/segments/mst.data"
-		rg=LabelData.atomic_region_graph(SNEMI3D.Test.edges,:SNEMI3DTest)
+	incidence = SegmentationMetrics.incidence_matrix(machine_labels, human_labels)
+	normalized_soft_label, soft_label = SegmentationMetrics.soft_label_factory(incidence)
+	errors=[]
+	Agglomerators.priority_apply_agglomeration2!(rg, ag, thresh; error_fun = (()-> push!(errors,SegmentationMetrics.rand_index(rg, soft_label))), report_freq=100)
 
-	else
-		# from = "$(dirname(@__FILE__))/../deps/datasets/pirifrom/train/omni/Empty.omni"
-  # 	to = "$(dirname(@__FILE__))/../deps/datasets/pirifrom/train/omni/$(name).omni"
-		# copy_omni_project(from, to)
-
-		mst_path = "$(dirname(@__FILE__))/../deps/datasets/piriform/train/omni/mst.data"
-		rg=LabelData.atomic_region_graph(piriform.Test.edges,:PiriformTrain)
-	end
-
-	#apply the oracle agglomerator with a given threshold
-	# sm=[]
-	# for threshold in reverse(0.0:0.5:1.0)
-	# 	apply_agglomeration!(rg,ag,threshold)
-	# 	push!(sm,Datasets.compute_error(rg))
-	# 	if length(keys(rg))<=2
-	# 		break
-	# 	end
-	# end
-	
-	apply_agglomeration!(rg,ag,0.5)
-	mst=MST.build_mst(rg)
-	MST.saveBinary(mst,mst_path)
-
-	# save_error(sm,name)
+	save_error(errors, name)
 end
 
-function copy_omni_project(from_project_path, to_project_path)
-
-	cp(from_project_path,to_project_path; remove_destination=true)
-	cp(string(from_project_path,".files"),string(to_project_path,".files"); remove_destination=true)
-
+function load_dataset(s::AbstractString)
+	LOAD_DIR=expanduser(s)
+	ranges=(1:500,1:500,1:100)
+	global machine_labels = convert(Array{UInt32,3},h5read("$(LOAD_DIR)machine_labels.h5","/main"))#[ranges...]
+	global human_labels = convert(Array{UInt32,3},h5read("$(LOAD_DIR)human_labels.h5","/main"))#[ranges...]
+	global affinities = convert(Array{Float32,4}, h5read("$(LOAD_DIR)affinities.h5","/main"))#[ranges...,:]
 end
 
-results_file="$(dirname(@__FILE__))/results.jls"
+const results_file="$(dirname(@__FILE__))/results.jls"
+
 function save_error(sm,name)
-	d=DataFrame(both=map(x->x[1],sm), split=map(x->x[2], sm), merge=map(x->x[3],sm), label=name)
+	d=DataFrame(precision=map(x->x[:precision], sm), recall=map(x->x[:recall],sm), vi_precision=map(x->x[:vi_precision],sm), vi_recall=map(x->x[:vi_recall],sm),label=name)
 	if !isfile(results_file)
 		x=Dict()
 		save(results_file,x)
@@ -66,8 +46,8 @@ end
 
 function plot_error(labels)
 	results=load(results_file)
-
 	data=vcat([results[k] for k in labels]...)
-	draw(SVG("results.svg", 6inch, 4inch), plot(data,x="split",y="merge",color="label",Geom.line,Coord.Cartesian(ymin=0.0,ymax=3.0,xmin=0.0,xmax=1.0)))
+	println(data)
+	draw(SVG("results.svg", 6inch, 4inch), plot(data,x="vi_precision",y="vi_recall",Guide.xlabel("vi_precision"), Guide.ylabel("vi_recall"),color="label",Geom.line,Coord.Cartesian(ymin=0.0,ymax=0.5,xmin=0.0,xmax=0.5)))
 end
 end
