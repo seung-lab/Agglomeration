@@ -11,5 +11,5 @@
 ```
 using Agglomeration
 using Process
-dend, dendValues = forward(aff, segm)
+dend, dendValues = Process.forward(aff, segm)
 ```
