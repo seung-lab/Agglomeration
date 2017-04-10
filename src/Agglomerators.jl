@@ -5,6 +5,9 @@ using RegionGraphs
 using Features
 using Base.Collections
 using DataStructures
+
+PriorityQueue = Base.Collections.PriorityQueue
+
 using Iterators
 abstract Agglomerator
 import Base: call

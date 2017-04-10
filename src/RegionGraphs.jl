@@ -47,7 +47,7 @@ type AtomicRegion <: Region
 		x=new()
 		x.label=label
 		x.parent=x
-		x.features=DefaultDict(Symbol,Float32,0f0)
+		x.features=DefaultDict{Symbol,Float32}(0f0)
 		return x
 	end
 end
@@ -361,7 +361,7 @@ function merge!(rg, head, tail)
 end
 
 function to_default_dict(neighbours::Dict{Region, Edge})
-	default_dict=DefaultDict(Region, Edge,()->EmptyEdge())
+	default_dict=DefaultDict{Region,Edge}(()->EmptyEdge())
 
 	for (r,val) in neighbours
 		default_dict[r]=val

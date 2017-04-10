@@ -71,7 +71,7 @@ function vi(A)
 end
 
 function incidence_matrix{S<:Integer,T<:Integer}(machine_labels::Array{S}, human_labels::Array{T})
-	incidence_dict=DefaultDict(Tuple{S,T},Int,0)
+	incidence_dict=DefaultDict{Tuple{S,T},Int}(0)
 	for i in eachindex(machine_labels, human_labels)
 		incidence_dict[(machine_labels[i],human_labels[i])]+=1
 	end
