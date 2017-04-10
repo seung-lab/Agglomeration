@@ -79,7 +79,7 @@ function leaves(x::Node)
 end
 
 
-
+#=
 function threshold(x::Node,thresh)
 	if get_weight(x) > thresh
 		return [x]
@@ -87,8 +87,25 @@ function threshold(x::Node,thresh)
 		@assert typeof(x)==MergeNode
 		return cat(1,threshold(x.left,thresh),threshold(x.right,thresh))
 	end
-
 end
+=#
+
+function threshold(x::Node, thresh)
+	to_explore = Node[x]
+	nodes=Node[]
+	while length(to_explore) > 0
+		n=pop!(to_explore)
+		if get_weight(n) > thresh
+			push!(nodes, n)
+		else
+			@assert typeof(n)==MergeNode
+			push!(to_explore, n.left)
+			push!(to_explore, n.right)
+		end
+	end
+	return nodes
+end
+
 
 function flatten(labels, merge_tree, thresh)
 	branches = threshold(merge_tree, thresh)
